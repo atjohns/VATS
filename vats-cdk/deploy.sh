@@ -30,7 +30,7 @@ echo "Extracting outputs for frontend configuration..."
 USER_POOL_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.UserPoolId')
 USER_POOL_CLIENT_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.UserPoolClientId')
 IDENTITY_POOL_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.IdentityPoolId')
-API_URL=$(cat cdk-outputs.json | jq -r '.VatsStack.ApiUrl')
+API_URL=$(cat cdk-outputs.json | jq -r '.VatsStack.ApiUrl' | sed 's/\/$//')
 PROFILE_PICTURES_BUCKET=$(cat cdk-outputs.json | jq -r '.VatsStack.ProfilePicturesBucketName')
 
 echo "=================================================="

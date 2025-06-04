@@ -174,7 +174,7 @@ const SignUp: React.FC = () => {
             </Button>
             
             <Box sx={{ textAlign: 'center' }}>
-              <Link href="/signin" variant="body2">
+              <Link component="button" onClick={() => navigate('/signin')} variant="body2">
                 Already have an account? Sign in
               </Link>
             </Box>

@@ -1,5 +1,14 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { Auth } from 'aws-amplify';
+import {
+  signIn,
+  signUp,
+  confirmSignUp,
+  signOut,
+  resendSignUpCode,
+  resetPassword,
+  confirmResetPassword,
+  getCurrentUser
+} from 'aws-amplify/auth';
 
 interface AuthContextType {
   user: any;
@@ -28,8 +37,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const checkAuth = async () => {
     try {
       setIsLoading(true);
-      const currentUser = await Auth.currentAuthenticatedUser();
-      setUser(currentUser);
+      const userInfo = await getCurrentUser();
+      setUser(userInfo);
       setIsAuthenticated(true);
     } catch (error) {
       setUser(null);
@@ -39,26 +48,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const handleSignIn = async (email: string, password: string) => {
     try {
-      const user = await Auth.signIn(email, password);
-      setUser(user);
-      setIsAuthenticated(true);
-      return user;
+      const { nextStep, isSignedIn } = await signIn({ username: email, password });
+      if (isSignedIn) {
+        const userInfo = await getCurrentUser();
+        setUser(userInfo);
+        setIsAuthenticated(true);
+        return userInfo;
+      }
+      return { nextStep };
     } catch (error) {
       throw error;
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const handleSignUp = async (email: string, password: string, name: string) => {
     try {
-      const result = await Auth.signUp({
+      const result = await signUp({
         username: email,
         password,
-        attributes: {
-          email,
-          given_name: name,
-          family_name: ' ',
+        options: {
+          userAttributes: {
+            email,
+            given_name: name,
+            family_name: ' ',
+          }
         }
       });
       return result;
@@ -67,17 +82,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const confirmSignUp = async (email: string, code: string) => {
+  const handleConfirmSignUp = async (email: string, code: string) => {
     try {
-      return await Auth.confirmSignUp(email, code);
+      return await confirmSignUp({ username: email, confirmationCode: code });
     } catch (error) {
       throw error;
     }
   };
 
-  const signOut = async () => {
+  const handleSignOut = async () => {
     try {
-      await Auth.signOut();
+      await signOut();
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
@@ -86,25 +101,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const resendConfirmationCode = async (email: string) => {
+  const handleResendConfirmationCode = async (email: string) => {
     try {
-      return await Auth.resendSignUp(email);
+      return await resendSignUpCode({ username: email });
     } catch (error) {
       throw error;
     }
   };
 
-  const forgotPassword = async (email: string) => {
+  const handleForgotPassword = async (email: string) => {
     try {
-      return await Auth.forgotPassword(email);
+      return await resetPassword({ username: email });
     } catch (error) {
       throw error;
     }
   };
 
-  const forgotPasswordSubmit = async (email: string, code: string, newPassword: string) => {
+  const handleForgotPasswordSubmit = async (email: string, code: string, newPassword: string) => {
     try {
-      return await Auth.forgotPasswordSubmit(email, code, newPassword);
+      return await confirmResetPassword({ username: email, confirmationCode: code, newPassword });
     } catch (error) {
       throw error;
     }
@@ -114,13 +129,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     isAuthenticated,
     isLoading,
-    signIn,
-    signUp,
-    confirmSignUp,
-    signOut,
-    resendConfirmationCode,
-    forgotPassword,
-    forgotPasswordSubmit,
+    signIn: handleSignIn,
+    signUp: handleSignUp,
+    confirmSignUp: handleConfirmSignUp,
+    signOut: handleSignOut,
+    resendConfirmationCode: handleResendConfirmationCode,
+    forgotPassword: handleForgotPassword,
+    forgotPasswordSubmit: handleForgotPasswordSubmit,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

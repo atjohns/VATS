@@ -1,0 +1,10 @@
+{
+  "VatsStack": {
+    "UserPoolClientId": "6cp505d5605l8fc9de1s4o9b4b",
+    "UserPoolId": "us-east-1_uYyr7tAKF",
+    "ApiUrl": "https://v1rb6qyxbj.execute-api.us-east-1.amazonaws.com/prod/",
+    "ProfilePicturesBucketName": "vatsstack-profilepicturesbucket40eec510-kurg6zjyxkgv",
+    "IdentityPoolId": "us-east-1:736b02c1-ff68-4822-bff0-5b98b7e83b3f",
+    "VatsApiEndpointB8F1BADD": "https://v1rb6qyxbj.execute-api.us-east-1.amazonaws.com/prod/"
+  }
+}

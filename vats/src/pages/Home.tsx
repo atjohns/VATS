@@ -79,7 +79,7 @@ const Home: React.FC = () => {
             V.A.T.S.
           </Typography>
           <Typography variant="subtitle1" sx={{ mr: 2 }}>
-            Hello, {user?.attributes?.given_name || 'User'}
+            Hello, {user?.username || 'User'}
           </Typography>
           <Button 
             color="inherit" 
@@ -98,7 +98,7 @@ const Home: React.FC = () => {
           aria-label="basic tabs example"
           centered
         >
-          <Tab label="Tournament Teams" />
+          <Tab label="College Football" />
           <Tab label="Your Profile" />
         </Tabs>
       </Box>

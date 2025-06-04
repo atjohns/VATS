@@ -1,39 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Amplify } from 'aws-amplify';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { awsConfig } from './aws-config';
+import { configureAmplify } from './amplify-config';
 
 // Pages
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import Home from './pages/Home';
 
-// Configure Amplify
-Amplify.configure({
-  Auth: {
-    region: awsConfig.region,
-    userPoolId: awsConfig.userPoolId,
-    userPoolWebClientId: awsConfig.userPoolWebClientId,
-    identityPoolId: awsConfig.identityPoolId,
-  },
-  Storage: {
-    region: awsConfig.region,
-    bucket: awsConfig.profilePicturesBucket,
-    identityPoolId: awsConfig.identityPoolId,
-  },
-  API: {
-    endpoints: [
-      {
-        name: 'VatsApi',
-        endpoint: awsConfig.apiUrl,
-      },
-    ],
-  },
-});
+// Initialize Amplify in V6 format with legacy compatibility
+configureAmplify();
 
 // Create a theme
 const theme = createTheme({

@@ -105,11 +105,11 @@ const SignIn: React.FC = () => {
         </form>
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Link href="/signup" variant="body2">
+          <Link component="button" onClick={() => navigate('/signup')} variant="body2">
             Don't have an account? Sign up
           </Link>
           
-          <Link href="/forgot-password" variant="body2">
+          <Link component="button" onClick={() => navigate('/reset-password')} variant="body2">
             Forgot password?
           </Link>
         </Box>

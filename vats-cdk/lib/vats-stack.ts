@@ -160,87 +160,117 @@ export class VatsStack extends cdk.Stack {
       },
     });
 
-    // Define Lambda functions for API
-    const getUserProfileLambda = new lambda.Function(this, 'GetUserProfileLambda', {
+    // Define a single Lambda function for all API operations
+    const apiLambda = new lambda.Function(this, 'ApiHandlerLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'getUserProfile.handler',
+      handler: 'apiHandler.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
         USERS_TABLE: usersTable.tableName,
+        TEAM_SELECTIONS_TABLE: teamSelectionsTable.tableName,
         PROFILE_PICTURES_BUCKET: profilePicturesBucket.bucketName,
       },
+      timeout: cdk.Duration.seconds(30), // Increase timeout for combined handler
+      memorySize: 512, // Allocate more memory
     });
 
-    const updateUserProfileLambda = new lambda.Function(this, 'UpdateUserProfileLambda', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'updateUserProfile.handler',
-      code: lambda.Code.fromAsset('lambda'),
-      environment: {
-        USERS_TABLE: usersTable.tableName,
-      },
-    });
+    // Grant all required permissions to the single Lambda function
+    usersTable.grantReadWriteData(apiLambda);
+    teamSelectionsTable.grantReadWriteData(apiLambda);
+    profilePicturesBucket.grantReadWrite(apiLambda);
 
-    const getTeamSelectionsLambda = new lambda.Function(this, 'GetTeamSelectionsLambda', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'getTeamSelections.handler',
-      code: lambda.Code.fromAsset('lambda'),
-      environment: {
-        TEAM_SELECTIONS_TABLE: teamSelectionsTable.tableName,
-      },
-    });
-
-    const updateTeamSelectionsLambda = new lambda.Function(this, 'UpdateTeamSelectionsLambda', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'updateTeamSelections.handler',
-      code: lambda.Code.fromAsset('lambda'),
-      environment: {
-        TEAM_SELECTIONS_TABLE: teamSelectionsTable.tableName,
-      },
-    });
-
-    // Grant required permissions to Lambda functions
-    usersTable.grantReadWriteData(getUserProfileLambda);
-    usersTable.grantReadWriteData(updateUserProfileLambda);
-    teamSelectionsTable.grantReadWriteData(getTeamSelectionsLambda);
-    teamSelectionsTable.grantReadWriteData(updateTeamSelectionsLambda);
-    profilePicturesBucket.grantRead(getUserProfileLambda);
-    profilePicturesBucket.grantReadWrite(updateUserProfileLambda);
-
-    // Create API Gateway
+    // Create API Gateway with basic CORS support
     const api = new apigateway.RestApi(this, 'VatsApi', {
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
-      },
+        allowOrigins: ['*'],
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
+      }
     });
 
     // Create authorizer for API
     const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'VatsAuthorizer', {
       cognitoUserPools: [userPool],
+      resultsCacheTtl: cdk.Duration.minutes(5),
     });
 
     // Create API endpoints
     const users = api.root.addResource('users');
     
     const userProfile = users.addResource('{userId}');
-    userProfile.addMethod('GET', new apigateway.LambdaIntegration(getUserProfileLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
+    
+    // Configure Lambda integration with proxy integration and CORS response handling
+    const apiIntegration = new apigateway.LambdaIntegration(apiLambda, {
+      proxy: true,
     });
-    userProfile.addMethod('PUT', new apigateway.LambdaIntegration(updateUserProfileLambda), {
+    
+    // Define standard method responses for all API methods
+    const standardMethodResponses = [
+      {
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      },
+      {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      },
+      {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      },
+      {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      },
+      {
+        statusCode: '404',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      },
+      {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      }
+    ];
+    
+    // Set up methods with proper CORS error responses
+    userProfile.addMethod('GET', apiIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses,
+    });
+    
+    userProfile.addMethod('PUT', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses,
     });
 
-    // Add team-selections as a child resource of userProfile instead of creating a new {userId} resource
+    // Add team-selections as a child resource of userProfile
     const teamSelections = userProfile.addResource('team-selections');
-    teamSelections.addMethod('GET', new apigateway.LambdaIntegration(getTeamSelectionsLambda), {
+    
+    // Use the same Lambda handler for team selections endpoints
+    teamSelections.addMethod('GET', apiIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
     });
-    teamSelections.addMethod('PUT', new apigateway.LambdaIntegration(updateTeamSelectionsLambda), {
+    
+    teamSelections.addMethod('PUT', apiIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
     });
 
     // Output important resources
