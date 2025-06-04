@@ -14,7 +14,20 @@ export const configureAmplify = () => {
       Cognito: {
         userPoolId: awsConfig.userPoolId,
         userPoolClientId: awsConfig.userPoolWebClientId,
-        identityPoolId: awsConfig.identityPoolId
+        identityPoolId: awsConfig.identityPoolId,
+        // Add OAuth configuration if Google auth is enabled
+        ...(awsConfig.googleAuthEnabled && {
+          loginWith: {
+            oauth: {
+              domain: awsConfig.oauth?.domain || '',
+              scopes: ['email', 'profile', 'openid'],
+              responseType: awsConfig.oauth?.responseType || 'code',
+              redirectSignIn: [awsConfig.oauth?.redirectSignIn || ''],
+              redirectSignOut: [awsConfig.oauth?.redirectSignOut || ''],
+              clientId: awsConfig.userPoolWebClientId,
+            }
+          }
+        })
       }
     },
     
@@ -24,6 +37,18 @@ export const configureAmplify = () => {
     aws_cognito_region: awsConfig.region,
     aws_user_pools_id: awsConfig.userPoolId,
     aws_user_pools_web_client_id: awsConfig.userPoolWebClientId,
+    
+    // Add OAuth configuration for legacy compatibility
+    ...(awsConfig.googleAuthEnabled && {
+      oauth: {
+        domain: awsConfig.oauth?.domain,
+        scope: ['email', 'profile', 'openid'],
+        redirectSignIn: awsConfig.oauth?.redirectSignIn,
+        redirectSignOut: awsConfig.oauth?.redirectSignOut,
+        responseType: awsConfig.oauth?.responseType,
+      },
+      federationTarget: 'COGNITO_USER_POOLS'
+    }),
     
     // Storage configuration
     Storage: {

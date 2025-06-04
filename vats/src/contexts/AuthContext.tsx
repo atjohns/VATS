@@ -7,7 +7,8 @@ import {
   resendSignUpCode,
   resetPassword,
   confirmResetPassword,
-  getCurrentUser
+  getCurrentUser,
+  signInWithRedirect
 } from 'aws-amplify/auth';
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
+  signInWithGoogle: () => Promise<any>;
   signUp: (email: string, password: string, name: string) => Promise<any>;
   confirmSignUp: (email: string, code: string) => Promise<any>;
   signOut: () => Promise<void>;
@@ -32,7 +34,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     checkAuth();
+    // Handle OAuth redirect callback when page loads
+    handleOAuthRedirect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleOAuthRedirect = async () => {
+    try {
+      // Check if we have returned from a redirect sign-in 
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      
+      // If this is a redirect from OAuth
+      if (code && state) {
+        setIsLoading(true);
+        // Clear URL parameters after processing to avoid repeat auth attempts
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Handle sign in completion
+        await checkAuth();
+      }
+    } catch (error) {
+      console.error('Error handling OAuth redirect:', error);
+      setIsLoading(false);
+    }
+  };
 
   const checkAuth = async () => {
     try {
@@ -59,6 +85,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       return { nextStep };
     } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleSignInWithGoogle = async () => {
+    try {
+      // Initiate Google sign in with redirect
+      await signInWithRedirect({ provider: 'Google' });
+      return true;
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
       throw error;
     }
   };
@@ -130,6 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated,
     isLoading,
     signIn: handleSignIn,
+    signInWithGoogle: handleSignInWithGoogle,
     signUp: handleSignUp,
     confirmSignUp: handleConfirmSignUp,
     signOut: handleSignOut,

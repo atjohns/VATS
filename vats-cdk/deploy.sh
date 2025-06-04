@@ -33,6 +33,11 @@ IDENTITY_POOL_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.IdentityPoolId')
 API_URL=$(cat cdk-outputs.json | jq -r '.VatsStack.ApiUrl' | sed 's/\/$//')
 PROFILE_PICTURES_BUCKET=$(cat cdk-outputs.json | jq -r '.VatsStack.ProfilePicturesBucketName')
 
+# Extract Google OAuth related outputs if available
+GOOGLE_AUTH_ENABLED=$(cat cdk-outputs.json | jq -r '.VatsStack.GoogleAuthEnabled // "false"')
+USER_POOL_DOMAIN=$(cat cdk-outputs.json | jq -r '.VatsStack.UserPoolDomain // ""')
+HOSTED_UI_SIGN_IN_URL=$(cat cdk-outputs.json | jq -r '.VatsStack.HostedUISignInUrl // ""')
+
 echo "=================================================="
 echo "CDK Deployment Complete!"
 echo "=================================================="
@@ -42,6 +47,11 @@ echo "User Pool Client ID: $USER_POOL_CLIENT_ID"
 echo "Identity Pool ID: $IDENTITY_POOL_ID"
 echo "API URL: $API_URL"
 echo "Profile Pictures Bucket: $PROFILE_PICTURES_BUCKET"
+echo "Google Auth Enabled: $GOOGLE_AUTH_ENABLED"
+if [ "$GOOGLE_AUTH_ENABLED" == "true" ]; then
+  echo "User Pool Domain: $USER_POOL_DOMAIN"
+  echo "Hosted UI Sign-in URL: $HOSTED_UI_SIGN_IN_URL"
+fi
 echo "=================================================="
 
 
@@ -56,6 +66,16 @@ interface AwsConfig {
   identityPoolId: string;
   profilePicturesBucket: string;
   apiUrl: string;
+  // Google OAuth related settings
+  googleAuthEnabled: boolean;
+  userPoolDomain?: string;
+  hostedUISignInUrl?: string;
+  oauth?: {
+    domain: string;
+    redirectSignIn: string;
+    redirectSignOut: string;
+    responseType: string;
+  };
 }
 
 export const awsConfig: AwsConfig = {
@@ -65,6 +85,30 @@ export const awsConfig: AwsConfig = {
   identityPoolId: '$IDENTITY_POOL_ID',
   profilePicturesBucket: '$PROFILE_PICTURES_BUCKET',
   apiUrl: '$API_URL',
+  googleAuthEnabled: $GOOGLE_AUTH_ENABLED,
+EOL
+
+if [ "$GOOGLE_AUTH_ENABLED" == "true" ]; then
+  # Extract domain name from the full URL
+  DOMAIN_NAME=$(echo $USER_POOL_DOMAIN | sed -e 's|^[^/]*//||' -e 's|/.*$||')
+  
+  cat >> $CONFIG_FILE << EOL
+  userPoolDomain: '$USER_POOL_DOMAIN',
+  hostedUISignInUrl: '$HOSTED_UI_SIGN_IN_URL',
+  oauth: {
+    domain: '$DOMAIN_NAME',
+    redirectSignIn: 'http://localhost:3000/home',
+    redirectSignOut: 'http://localhost:3000',
+    responseType: 'code'
+  }
+EOL
+else
+  cat >> $CONFIG_FILE << EOL
+  // OAuth not configured
+EOL
+fi
+
+cat >> $CONFIG_FILE << EOL
 };
 EOL
 

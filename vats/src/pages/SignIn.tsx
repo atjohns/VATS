@@ -6,19 +6,26 @@ import {
   Button, 
   CircularProgress, 
   Paper,
-  Link
+  Link,
+  Divider
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import GoogleIcon from '@mui/icons-material/Google';
+import { awsConfig } from '../aws-config';
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  
+  // Check if Google authentication is enabled
+  const googleAuthEnabled = awsConfig.googleAuthEnabled;
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -32,6 +39,19 @@ const SignIn: React.FC = () => {
       setError(err.message || 'An error occurred during sign in');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError('');
+    
+    try {
+      await signInWithGoogle();
+      // Redirect is handled automatically by OAuth flow
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during Google sign in');
+      setGoogleLoading(false);
     }
   };
   
@@ -103,6 +123,33 @@ const SignIn: React.FC = () => {
             {loading ? <CircularProgress size={24} /> : 'Sign In'}
           </Button>
         </form>
+        
+        {googleAuthEnabled && (
+          <>
+            <Divider sx={{ my: 2 }}>OR</Divider>
+            
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<GoogleIcon />}
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              sx={{ 
+                mt: 1, 
+                mb: 2,
+                bgcolor: '#fff',
+                color: '#757575',
+                borderColor: '#dadce0',
+                '&:hover': {
+                  bgcolor: '#f5f5f5',
+                  borderColor: '#dadce0'
+                }
+              }}
+            >
+              {googleLoading ? <CircularProgress size={24} /> : 'Sign in with Google'}
+            </Button>
+          </>
+        )}
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Link component="button" onClick={() => navigate('/signup')} variant="body2">

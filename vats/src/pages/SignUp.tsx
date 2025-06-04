@@ -1,93 +1,93 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
-  CircularProgress, 
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  CircularProgress,
   Paper,
   Link,
-  Stepper,
-  Step,
-  StepLabel
+  Alert
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const steps = ['Create Account', 'Verify Email'];
-
 const SignUp: React.FC = () => {
-  const [activeStep, setActiveStep] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const { signUp, confirmSignUp, resendConfirmationCode } = useAuth();
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const [confirmSuccess, setConfirmSuccess] = useState(false);
+
+  const { signUp, confirmSignUp } = useAuth();
   const navigate = useNavigate();
-  
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
+    
+    // Reset errors
     setError('');
     
+    // Validate password match
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
+      setError("Passwords don't match");
       return;
     }
     
+    // Validate password strength
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    
+    setLoading(true);
+    
     try {
-      await signUp(email, password, name);
-      setActiveStep(1);
+      const result = await signUp(email, password, name);
+      if (result.nextStep?.code === 'CONFIRM_SIGN_UP') {
+        setNeedsConfirmation(true);
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred during sign up');
     } finally {
       setLoading(false);
     }
   };
-  
-  const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
+
+  const handleConfirmation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    
+    // Reset errors
+    setConfirmError('');
+    setConfirmLoading(true);
     
     try {
-      await confirmSignUp(email, verificationCode);
-      alert('Account verified successfully! Please sign in.');
-      navigate('/signin');
+      await confirmSignUp(email, confirmationCode);
+      setConfirmSuccess(true);
+      // Redirect to sign in after a short delay
+      setTimeout(() => navigate('/signin'), 3000);
     } catch (err: any) {
-      setError(err.message || 'An error occurred during verification');
+      setConfirmError(err.message || 'An error occurred during confirmation');
     } finally {
-      setLoading(false);
+      setConfirmLoading(false);
     }
   };
-  
-  const handleResendCode = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      await resendConfirmationCode(email);
-      alert('Verification code resent to your email');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while resending the code');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+
   return (
     <Box 
       sx={{ 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '100vh',
-        bgcolor: '#f5f5f5'
+        minHeight: '100vh',
+        bgcolor: '#f5f5f5',
+        py: 4
       }}
     >
       <Paper 
@@ -105,125 +105,118 @@ const SignUp: React.FC = () => {
           Create an Account
         </Typography>
         
-        <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-        
-        {error && (
-          <Typography color="error" align="center">
-            {error}
-          </Typography>
-        )}
-        
-        {activeStep === 0 ? (
-          <form onSubmit={handleSignUp}>
-            <TextField
-              label="Full Name"
-              fullWidth
-              margin="normal"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus
-            />
+        {!needsConfirmation ? (
+          <>
+            {error && (
+              <Typography color="error" align="center">
+                {error}
+              </Typography>
+            )}
             
-            <TextField
-              label="Email"
-              type="email"
-              fullWidth
-              margin="normal"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <form onSubmit={handleSubmit}>
+              <TextField
+                label="Full Name"
+                fullWidth
+                margin="normal"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoFocus
+              />
+              
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                margin="normal"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              
+              <TextField
+                label="Password"
+                type="password"
+                fullWidth
+                margin="normal"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                helperText="Password must be at least 8 characters"
+              />
+              
+              <TextField
+                label="Confirm Password"
+                type="password"
+                fullWidth
+                margin="normal"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+              
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                color="primary"
+                disabled={loading}
+                sx={{ mt: 3, mb: 2 }}
+              >
+                {loading ? <CircularProgress size={24} /> : 'Sign Up'}
+              </Button>
+            </form>
             
-            <TextField
-              label="Password"
-              type="password"
-              fullWidth
-              margin="normal"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              helperText="Password must be at least 8 characters with uppercase, lowercase, and numbers"
-            />
-            
-            <TextField
-              label="Confirm Password"
-              type="password"
-              fullWidth
-              margin="normal"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-            
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-              disabled={loading}
-              sx={{ mt: 2, mb: 2 }}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Sign Up'}
-            </Button>
-            
-            <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Link component="button" onClick={() => navigate('/signin')} variant="body2">
                 Already have an account? Sign in
               </Link>
             </Box>
-          </form>
+          </>
         ) : (
-          <form onSubmit={handleVerify}>
-            <Typography variant="body1" gutterBottom>
-              We've sent a verification code to your email. Please enter it below.
-            </Typography>
+          <>
+            <Alert severity="info">
+              A verification code has been sent to your email address.
+              Please enter it below to complete your registration.
+            </Alert>
             
-            <TextField
-              label="Verification Code"
-              fullWidth
-              margin="normal"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              required
-              autoFocus
-            />
+            {confirmError && (
+              <Typography color="error" align="center">
+                {confirmError}
+              </Typography>
+            )}
             
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-              disabled={loading}
-              sx={{ mt: 2, mb: 2 }}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Verify'}
-            </Button>
+            {confirmSuccess && (
+              <Alert severity="success">
+                Your account has been verified successfully! Redirecting to login...
+              </Alert>
+            )}
             
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Button 
-                variant="text" 
-                onClick={() => setActiveStep(0)}
-                disabled={loading}
-              >
-                Back
-              </Button>
-              
-              <Button 
-                variant="text" 
-                onClick={handleResendCode}
-                disabled={loading}
-              >
-                Resend Code
-              </Button>
-            </Box>
-          </form>
+            {!confirmSuccess && (
+              <form onSubmit={handleConfirmation}>
+                <TextField
+                  label="Confirmation Code"
+                  fullWidth
+                  margin="normal"
+                  value={confirmationCode}
+                  onChange={(e) => setConfirmationCode(e.target.value)}
+                  required
+                  autoFocus
+                />
+                
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  disabled={confirmLoading}
+                  sx={{ mt: 2, mb: 2 }}
+                >
+                  {confirmLoading ? <CircularProgress size={24} /> : 'Confirm'}
+                </Button>
+              </form>
+            )}
+          </>
         )}
       </Paper>
     </Box>

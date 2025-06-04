@@ -41,7 +41,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+
 const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -57,8 +60,16 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             } 
           />
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="/" element={
+            isLoading ? (
+              <div>Loading...</div>
+            ) : isAuthenticated ? (
+              <Navigate to="/home" replace />
+            ) : (
+              <Navigate to="/signin" replace />
+            )
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </ThemeProvider>

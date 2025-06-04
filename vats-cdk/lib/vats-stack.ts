@@ -7,8 +7,18 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
+// Custom interface for stack props that includes Google Auth client details
+export interface VatsStackProps extends cdk.StackProps {
+  env: {
+    account: string | undefined;
+    region: string | undefined;
+    googleAuthClientId: string;
+    googleAuthClientSecret: string;
+  };
+}
+
 export class VatsStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: VatsStackProps) {
     super(scope, id, props);
 
     // Create S3 bucket for profile pictures
@@ -42,7 +52,7 @@ export class VatsStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Create Cognito User Pool for authentication
+    // Create Cognito User Pool for authentication with both Cognito and Google
     const userPool = new cognito.UserPool(this, 'VatsUserPool', {
       selfSignUpEnabled: true,
       autoVerify: { email: true },
@@ -70,23 +80,74 @@ export class VatsStack extends cdk.Stack {
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+    
+    // Extract Google OAuth credentials from props
+    const googleClientId = props?.env?.googleAuthClientId;
+    const googleClientSecret = props?.env?.googleAuthClientSecret;
 
-    // Create app client
+    // Create app client with support for Google OAuth
     const userPoolClient = new cognito.UserPoolClient(this, 'VatsUserPoolClient', {
       userPool,
       generateSecret: false,
       authFlows: {
         userPassword: true,
         userSrp: true,
+        custom: true,
       },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.COGNITO,
+        cognito.UserPoolClientIdentityProvider.GOOGLE,
+      ],
       oAuth: {
         flows: {
           implicitCodeGrant: true,
+          authorizationCodeGrant: true,
         },
-        callbackUrls: ['http://localhost:3000'],
-        logoutUrls: ['http://localhost:3000'],
+        scopes: [
+          cognito.OAuthScope.EMAIL,
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.PROFILE,
+        ],
+        callbackUrls: [
+          'http://localhost:3000',
+          'http://localhost:3000/home',
+        ],
+        logoutUrls: [
+          'http://localhost:3000',
+        ],
       },
     });
+    
+    // Store a reference to the Google provider if created
+    let googleProvider: cognito.UserPoolIdentityProviderGoogle | undefined;
+    
+    // Add Google as an identity provider if credentials are provided
+    if (googleClientId && googleClientSecret) {
+      // Create Google Identity Provider
+      googleProvider = new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
+        userPool,
+        clientId: googleClientId,
+        clientSecretValue: cdk.SecretValue.unsafePlainText(googleClientSecret),
+        scopes: ['profile', 'email', 'openid'],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
+          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
+          profilePicture: cognito.ProviderAttribute.GOOGLE_PICTURE,
+        }
+      });
+      
+      // Add the Google provider to the user pool
+      userPool.registerIdentityProvider(googleProvider);
+    } else {
+      // Log a warning if Google credentials aren't provided
+      console.warn('Google OAuth credentials not provided or incomplete. Google sign-in will not be available.');
+    }
+
+    // If google provider was created, add dependency to ensure it exists before the client
+    if (googleProvider) {
+      userPoolClient.node.addDependency(googleProvider);
+    }
 
     // Create identity pool for authenticated and unauthenticated users
     const identityPool = new cognito.CfnIdentityPool(this, 'VatsIdentityPool', {
@@ -293,5 +354,33 @@ export class VatsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ProfilePicturesBucketName', {
       value: profilePicturesBucket.bucketName,
     });
+    
+    // Output OAuth domain URL if Google auth is enabled
+    if (googleProvider) {
+      // Create a custom domain for the Cognito hosted UI
+      const domain = userPool.addDomain('VatsUserPoolDomain', {
+        cognitoDomain: {
+          domainPrefix: 'vats-app', // This will create vats-app.auth.<region>.amazoncognito.com
+        },
+      });
+      
+      new cdk.CfnOutput(this, 'GoogleAuthEnabled', {
+        value: 'true',
+      });
+      
+      new cdk.CfnOutput(this, 'UserPoolDomain', {
+        value: domain.baseUrl(),
+      });
+      
+      new cdk.CfnOutput(this, 'HostedUISignInUrl', {
+        value: domain.signInUrl(userPoolClient, {
+          redirectUri: 'http://localhost:3000/home',
+        }),
+      });
+    } else {
+      new cdk.CfnOutput(this, 'GoogleAuthEnabled', {
+        value: 'false',
+      });
+    }
   }
 }
