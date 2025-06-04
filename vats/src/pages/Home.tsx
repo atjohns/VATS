@@ -8,9 +8,9 @@ import {
   AppBar,
   Toolbar,
   Button,
-  CircularProgress
+  CircularProgress,
+  Avatar
 } from '@mui/material';
-import ProfileForm from '../components/ProfileForm';
 import TeamSelectionForm from '../components/TeamSelectionForm';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -78,9 +78,16 @@ const Home: React.FC = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             V.A.T.S.
           </Typography>
-          <Typography variant="subtitle1" sx={{ mr: 2 }}>
-            Hello, {user?.username || 'User'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+            <Avatar 
+              src={user?.picture} 
+              alt={user?.friendlyUsername || user?.username} 
+              sx={{ width: 32, height: 32, mr: 1 }} 
+            />
+            <Typography variant="subtitle1">
+              {user?.friendlyUsername || user?.username || 'User'}
+            </Typography>
+          </Box>
           <Button 
             color="inherit" 
             onClick={handleSignOut}
@@ -99,16 +106,12 @@ const Home: React.FC = () => {
           centered
         >
           <Tab label="College Football" />
-          <Tab label="Your Profile" />
         </Tabs>
       </Box>
 
       <Container maxWidth="md" sx={{ mt: 4 }}>
         <TabPanel value={tabValue} index={0}>
           <TeamSelectionForm />
-        </TabPanel>
-        <TabPanel value={tabValue} index={1}>
-          <ProfileForm />
         </TabPanel>
       </Container>
     </Box>

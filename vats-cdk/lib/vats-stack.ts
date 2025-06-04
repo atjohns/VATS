@@ -1,6 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -21,23 +20,6 @@ export class VatsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: VatsStackProps) {
     super(scope, id, props);
 
-    // Create S3 bucket for profile pictures
-    const profilePicturesBucket = new s3.Bucket(this, 'ProfilePicturesBucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      cors: [
-        {
-          allowedMethods: [
-            s3.HttpMethods.GET,
-            s3.HttpMethods.POST,
-            s3.HttpMethods.PUT,
-          ],
-          allowedOrigins: ['*'],
-          allowedHeaders: ['*'],
-        },
-      ],
-    });
 
     // Create DynamoDB tables for user profiles and team selections
     const usersTable = new dynamodb.Table(this, 'UsersTable', {
@@ -95,7 +77,6 @@ export class VatsStack extends cdk.Stack {
         custom: true,
       },
       supportedIdentityProviders: [
-        cognito.UserPoolClientIdentityProvider.COGNITO,
         cognito.UserPoolClientIdentityProvider.GOOGLE,
       ],
       oAuth: {
@@ -107,6 +88,7 @@ export class VatsStack extends cdk.Stack {
           cognito.OAuthScope.EMAIL,
           cognito.OAuthScope.OPENID,
           cognito.OAuthScope.PROFILE,
+          cognito.OAuthScope.COGNITO_ADMIN,
         ],
         callbackUrls: [
           'http://localhost:3000',
@@ -132,8 +114,7 @@ export class VatsStack extends cdk.Stack {
         attributeMapping: {
           email: cognito.ProviderAttribute.GOOGLE_EMAIL,
           givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
-          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
-          profilePicture: cognito.ProviderAttribute.GOOGLE_PICTURE,
+          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME
         }
       });
       
@@ -184,18 +165,6 @@ export class VatsStack extends cdk.Stack {
       ),
     });
 
-    authenticatedRole.addToPolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: [
-          's3:GetObject',
-          's3:PutObject',
-        ],
-        resources: [
-          profilePicturesBucket.arnForObjects('${cognito-identity.amazonaws.com:sub}/*'),
-        ],
-      })
-    );
 
     authenticatedRole.addToPolicy(
       new iam.PolicyStatement({
@@ -229,7 +198,6 @@ export class VatsStack extends cdk.Stack {
       environment: {
         USERS_TABLE: usersTable.tableName,
         TEAM_SELECTIONS_TABLE: teamSelectionsTable.tableName,
-        PROFILE_PICTURES_BUCKET: profilePicturesBucket.bucketName,
       },
       timeout: cdk.Duration.seconds(30), // Increase timeout for combined handler
       memorySize: 512, // Allocate more memory
@@ -238,7 +206,6 @@ export class VatsStack extends cdk.Stack {
     // Grant all required permissions to the single Lambda function
     usersTable.grantReadWriteData(apiLambda);
     teamSelectionsTable.grantReadWriteData(apiLambda);
-    profilePicturesBucket.grantReadWrite(apiLambda);
 
     // Create API Gateway with basic CORS support
     const api = new apigateway.RestApi(this, 'VatsApi', {
@@ -351,9 +318,6 @@ export class VatsStack extends cdk.Stack {
       value: api.url,
     });
     
-    new cdk.CfnOutput(this, 'ProfilePicturesBucketName', {
-      value: profilePicturesBucket.bucketName,
-    });
     
     // Output OAuth domain URL if Google auth is enabled
     if (googleProvider) {

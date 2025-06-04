@@ -20,7 +20,7 @@ export const configureAmplify = () => {
           loginWith: {
             oauth: {
               domain: awsConfig.oauth?.domain || '',
-              scopes: ['email', 'profile', 'openid'],
+              scopes: ['email', 'profile', 'openid','aws.cognito.signin.user.admin'],
               responseType: awsConfig.oauth?.responseType || 'code',
               redirectSignIn: [awsConfig.oauth?.redirectSignIn || ''],
               redirectSignOut: [awsConfig.oauth?.redirectSignOut || ''],
@@ -42,7 +42,7 @@ export const configureAmplify = () => {
     ...(awsConfig.googleAuthEnabled && {
       oauth: {
         domain: awsConfig.oauth?.domain,
-        scope: ['email', 'profile', 'openid'],
+        scope: ['email', 'profile', 'openid','aws.cognito.signin.user.admin'],
         redirectSignIn: awsConfig.oauth?.redirectSignIn,
         redirectSignOut: awsConfig.oauth?.redirectSignOut,
         responseType: awsConfig.oauth?.responseType,
@@ -50,17 +50,6 @@ export const configureAmplify = () => {
       federationTarget: 'COGNITO_USER_POOLS'
     }),
     
-    // Storage configuration
-    Storage: {
-      S3: {
-        bucket: awsConfig.profilePicturesBucket,
-        region: awsConfig.region
-      }
-    },
-    
-    // Legacy storage config
-    aws_user_files_s3_bucket: awsConfig.profilePicturesBucket,
-    aws_user_files_s3_bucket_region: awsConfig.region,
     
     // API configuration
     API: {

@@ -1,28 +1,17 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import {
-  signIn,
-  signUp,
-  confirmSignUp,
   signOut,
-  resendSignUpCode,
-  resetPassword,
-  confirmResetPassword,
   getCurrentUser,
-  signInWithRedirect
+  signInWithRedirect,
+  fetchUserAttributes
 } from 'aws-amplify/auth';
 
 interface AuthContextType {
   user: any;
   isAuthenticated: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
   signInWithGoogle: () => Promise<any>;
-  signUp: (email: string, password: string, name: string) => Promise<any>;
-  confirmSignUp: (email: string, code: string) => Promise<any>;
   signOut: () => Promise<void>;
-  resendConfirmationCode: (email: string) => Promise<any>;
-  forgotPassword: (email: string) => Promise<any>;
-  forgotPasswordSubmit: (email: string, code: string, newPassword: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,28 +53,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
       const userInfo = await getCurrentUser();
-      setUser(userInfo);
+      
+      // For Google sign-in users (which is all we support now), get the proper profile
+      try {
+        const attributes = await fetchUserAttributes();
+        // Enhance the user object with attributes from Google
+        setUser({
+          ...userInfo,
+          // Name from Google profile
+          friendlyUsername: attributes.name || 
+            (attributes.given_name && attributes.family_name
+              ? `${attributes.given_name} ${attributes.family_name}`
+              : (attributes.given_name || userInfo.username)),
+          // Add other useful attributes
+          email: attributes.email,
+          picture: attributes.picture
+        });
+      } catch (attrError) {
+        console.error('Error fetching user attributes:', attrError);
+        // If we can't get attributes, just use the basic user
+        setUser(userInfo);
+      }
+      
       setIsAuthenticated(true);
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSignIn = async (email: string, password: string) => {
-    try {
-      const { nextStep, isSignedIn } = await signIn({ username: email, password });
-      if (isSignedIn) {
-        const userInfo = await getCurrentUser();
-        setUser(userInfo);
-        setIsAuthenticated(true);
-        return userInfo;
-      }
-      return { nextStep };
-    } catch (error) {
-      throw error;
     }
   };
 
@@ -96,33 +91,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return true;
     } catch (error) {
       console.error('Error signing in with Google:', error);
-      throw error;
-    }
-  };
-
-  const handleSignUp = async (email: string, password: string, name: string) => {
-    try {
-      const result = await signUp({
-        username: email,
-        password,
-        options: {
-          userAttributes: {
-            email,
-            given_name: name,
-            family_name: ' ',
-          }
-        }
-      });
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleConfirmSignUp = async (email: string, code: string) => {
-    try {
-      return await confirmSignUp({ username: email, confirmationCode: code });
-    } catch (error) {
       throw error;
     }
   };
@@ -138,42 +106,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const handleResendConfirmationCode = async (email: string) => {
-    try {
-      return await resendSignUpCode({ username: email });
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleForgotPassword = async (email: string) => {
-    try {
-      return await resetPassword({ username: email });
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleForgotPasswordSubmit = async (email: string, code: string, newPassword: string) => {
-    try {
-      return await confirmResetPassword({ username: email, confirmationCode: code, newPassword });
-    } catch (error) {
-      throw error;
-    }
-  };
 
   const value = {
     user,
     isAuthenticated,
     isLoading,
-    signIn: handleSignIn,
     signInWithGoogle: handleSignInWithGoogle,
-    signUp: handleSignUp,
-    confirmSignUp: handleConfirmSignUp,
     signOut: handleSignOut,
-    resendConfirmationCode: handleResendConfirmationCode,
-    forgotPassword: handleForgotPassword,
-    forgotPasswordSubmit: handleForgotPasswordSubmit,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
