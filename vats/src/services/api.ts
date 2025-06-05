@@ -25,8 +25,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
       Authorization: `Bearer ${token}`
     };
     
-    // TypeScript may show a warning about 'await' having no effect on type expression
-    // but we need to await the promise resolution
+    // Make API request
     const getPromise = get({
       apiName: 'VatsApi',
       path: `/users/${userId}`,
@@ -35,7 +34,8 @@ export const getUserProfile = async (): Promise<UserProfile> => {
       }
     });
     
-    const response = await getPromise;
+    // Get the response
+    const response = getPromise;
     return (response as any).body;
   } catch (error) {
     console.error('Error getting user profile:', error);
@@ -71,8 +71,7 @@ export const updateUserProfile = async (name: string, profilePicture?: File): Pr
       });
     }
     
-    // TypeScript may show a warning about 'await' having no effect on type expression
-    // but we need to await the promise resolution
+    // Make API request
     const putPromise = put({
       apiName: 'VatsApi',
       path: `/users/${userId}`,
@@ -85,7 +84,8 @@ export const updateUserProfile = async (name: string, profilePicture?: File): Pr
       } as any
     });
     
-    const response = await putPromise;
+    // Get the response
+    const response = putPromise;
     
     return (response as any).body;
   } catch (error) {
@@ -101,6 +101,7 @@ export interface TeamSelection {
   teamName: string;
   location: string;
   conference: string;
+  selectionType?: string; // Added for admin functionality
 }
 
 export const getTeamSelections = async (): Promise<TeamSelection[]> => {
@@ -133,8 +134,7 @@ export const getTeamSelections = async (): Promise<TeamSelection[]> => {
     console.log('Making API request to:', `/users/${userId}/team-selections`);
     let responseBody;
     try {
-      // TypeScript may show a warning about 'await' having no effect on type expression
-      // but we need to await the promise resolution
+      // Make API request
       const getPromise = get({
         apiName: 'VatsApi',
         path: `/users/${userId}/team-selections`,
@@ -143,6 +143,7 @@ export const getTeamSelections = async (): Promise<TeamSelection[]> => {
         }
       });
       
+      // Get the response
       const { body } = await getPromise.response;
       responseBody = await body.text();
     } catch (err) {
@@ -186,8 +187,7 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[]): Pro
       Authorization: `Bearer ${token}`
     };
     
-    // TypeScript may show a warning about 'await' having no effect on type expression
-    // but we need to await the promise resolution
+    // Make API request
     const putPromise = put({
       apiName: 'VatsApi',
       path: `/users/${userId}/team-selections`,
@@ -199,11 +199,134 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[]): Pro
       } as any
     });
     
-    const response = await putPromise;
+    // Get the response
+    const response = putPromise;
     
     return (response as any).body?.teamSelections;
   } catch (error) {
     console.error('Error updating team selections:', error);
+    throw error;
+  }
+};
+
+// Admin API Functions
+export interface UserData {
+  userId: string;
+  username: string;
+  email?: string;
+  name?: string;
+}
+
+// Get all users (admin only)
+export const getAllUsers = async (): Promise<UserData[]> => {
+  try {
+    // Import auth functions
+    const authModule = await import('aws-amplify/auth');
+    const { fetchAuthSession } = authModule;
+    
+    // Get authentication session
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString() || '';
+    
+    // Create request headers with token
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    
+    // Get all users
+    const getPromise = get({
+      apiName: 'VatsApi',
+      path: '/admin/users',
+      options: {
+        headers: headers
+      }
+    });
+    
+    const { body } = await getPromise.response;
+    const responseBody = await body.text();
+    const parsedBody = JSON.parse(responseBody);
+    
+    return parsedBody.users || [];
+  } catch (error) {
+    console.error('Error getting all users:', error);
+    throw error;
+  }
+};
+
+// Get team selections for specific user (admin only)
+export const getUserTeamSelections = async (userId: string): Promise<TeamSelection[]> => {
+  try {
+    // Import auth functions
+    const authModule = await import('aws-amplify/auth');
+    const { fetchAuthSession } = authModule;
+    
+    // Get authentication session
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString() || '';
+    
+    // Create request headers with token
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    
+    // Get team selections for specific user
+    const getPromise = get({
+      apiName: 'VatsApi',
+      path: `/admin/users/${userId}/team-selections`,
+      options: {
+        headers: headers
+      }
+    });
+    
+    const { body } = await getPromise.response;
+    const responseBody = await body.text();
+    const parsedBody = JSON.parse(responseBody);
+    
+    return parsedBody.teamSelections || [];
+  } catch (error) {
+    console.error(`Error getting team selections for user ${userId}:`, error);
+    throw error;
+  }
+};
+
+// Update team selections for specific user (admin only)
+export const updateUserTeamSelections = async (
+  userId: string,
+  teamSelections: TeamSelection[]
+): Promise<TeamSelection[]> => {
+  try {
+    // Import auth functions
+    const authModule = await import('aws-amplify/auth');
+    const { fetchAuthSession } = authModule;
+    
+    // Get authentication session
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString() || '';
+    
+    // Create request headers with token
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    
+    // Update team selections for specific user
+    const putPromise = put({
+      apiName: 'VatsApi',
+      path: `/admin/users/${userId}/team-selections`,
+      options: {
+        headers: headers,
+        body: JSON.stringify({
+          teamSelections,
+        })
+      } as any
+    });
+    
+    const { body } = await putPromise.response;
+    const responseBody = await body.text();
+    const parsedBody = JSON.parse(responseBody);
+    
+    return parsedBody.teamSelections || [];
+  } catch (error) {
+    console.error(`Error updating team selections for user ${userId}:`, error);
     throw error;
   }
 };

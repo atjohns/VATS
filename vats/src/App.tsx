@@ -9,6 +9,7 @@ import { configureAmplify } from './amplify-config';
 // Pages
 import SignIn from './pages/SignIn';
 import Home from './pages/Home';
+import Admin from './pages/Admin';
 
 // Initialize Amplify in V6 format with legacy compatibility
 configureAmplify();
@@ -40,6 +41,24 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Admin route component
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/home" />;
+  }
+  
+  return <>{children}</>;
+};
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -56,6 +75,14 @@ const AppContent: React.FC = () => {
               <ProtectedRoute>
                 <Home />
               </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
             } 
           />
           <Route path="/" element={

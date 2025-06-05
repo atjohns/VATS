@@ -22,8 +22,8 @@ export const configureAmplify = () => {
               domain: awsConfig.oauth?.domain || '',
               scopes: ['email', 'profile', 'openid','aws.cognito.signin.user.admin'],
               responseType: awsConfig.oauth?.responseType || 'code',
-              redirectSignIn: [awsConfig.oauth?.redirectSignIn || ''],
-              redirectSignOut: [awsConfig.oauth?.redirectSignOut || ''],
+              redirectSignIn: (awsConfig.oauth?.redirectSignIn || '').split(','),
+              redirectSignOut: (awsConfig.oauth?.redirectSignOut || '').split(','),
               clientId: awsConfig.userPoolWebClientId,
             }
           }

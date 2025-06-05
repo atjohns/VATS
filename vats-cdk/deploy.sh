@@ -31,7 +31,8 @@ USER_POOL_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.UserPoolId')
 USER_POOL_CLIENT_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.UserPoolClientId')
 IDENTITY_POOL_ID=$(cat cdk-outputs.json | jq -r '.VatsStack.IdentityPoolId')
 API_URL=$(cat cdk-outputs.json | jq -r '.VatsStack.ApiUrl' | sed 's/\/$//')
-PROFILE_PICTURES_BUCKET=$(cat cdk-outputs.json | jq -r '.VatsStack.ProfilePicturesBucketName')
+WEBSITE_BUCKET_NAME=$(cat cdk-outputs.json | jq -r '.VatsStack.WebsiteBucketName')
+CLOUDFRONT_URL=$(cat cdk-outputs.json | jq -r '.VatsStack.CloudFrontURL')
 
 # Extract Google OAuth related outputs if available
 GOOGLE_AUTH_ENABLED=$(cat cdk-outputs.json | jq -r '.VatsStack.GoogleAuthEnabled // "false"')
@@ -46,7 +47,8 @@ echo "User Pool ID: $USER_POOL_ID"
 echo "User Pool Client ID: $USER_POOL_CLIENT_ID"
 echo "Identity Pool ID: $IDENTITY_POOL_ID"
 echo "API URL: $API_URL"
-echo "Profile Pictures Bucket: $PROFILE_PICTURES_BUCKET"
+echo "Website Bucket: $WEBSITE_BUCKET_NAME"
+echo "CloudFront URL: $CLOUDFRONT_URL"
 echo "Google Auth Enabled: $GOOGLE_AUTH_ENABLED"
 if [ "$GOOGLE_AUTH_ENABLED" == "true" ]; then
   echo "User Pool Domain: $USER_POOL_DOMAIN"
@@ -64,8 +66,9 @@ interface AwsConfig {
   userPoolId: string;
   userPoolWebClientId: string;
   identityPoolId: string;
-  profilePicturesBucket: string;
+  websiteBucketName: string;
   apiUrl: string;
+  cloudfrontUrl: string;
   // Google OAuth related settings
   googleAuthEnabled: boolean;
   userPoolDomain?: string;
@@ -83,8 +86,9 @@ export const awsConfig: AwsConfig = {
   userPoolId: '$USER_POOL_ID',
   userPoolWebClientId: '$USER_POOL_CLIENT_ID',
   identityPoolId: '$IDENTITY_POOL_ID',
-  profilePicturesBucket: '$PROFILE_PICTURES_BUCKET',
+  websiteBucketName: '$WEBSITE_BUCKET_NAME',
   apiUrl: '$API_URL',
+  cloudfrontUrl: '$CLOUDFRONT_URL',
   googleAuthEnabled: $GOOGLE_AUTH_ENABLED,
 EOL
 
@@ -97,8 +101,8 @@ if [ "$GOOGLE_AUTH_ENABLED" == "true" ]; then
   hostedUISignInUrl: '$HOSTED_UI_SIGN_IN_URL',
   oauth: {
     domain: '$DOMAIN_NAME',
-    redirectSignIn: 'http://localhost:3000/home',
-    redirectSignOut: 'http://localhost:3000',
+    redirectSignIn: '$CLOUDFRONT_URL/home,$CLOUDFRONT_URL/admin,http://localhost:3000/home',
+    redirectSignOut: '$CLOUDFRONT_URL,http://localhost:3000',
     responseType: 'code'
   }
 EOL
@@ -114,12 +118,44 @@ EOL
 
 echo "Frontend configuration file generated at $CONFIG_FILE"
 
+echo "=================================================="
+echo "Building and deploying the React application..."
+echo "=================================================="
+
+# Navigate to the React app directory
+cd ../vats
+
+# Install dependencies
+echo "Installing React app dependencies..."
+npm install
+
+# Build the React application
+echo "Building the React application..."
+npm run build
+
+# Deploy to S3
+echo "Deploying to S3 bucket: $WEBSITE_BUCKET_NAME..."
+aws s3 sync build/ s3://$WEBSITE_BUCKET_NAME/ --delete
+
+# Invalidate CloudFront cache
+echo "Invalidating CloudFront cache..."
+# Extract CloudFront distribution ID
+DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?DefaultCacheBehavior.TargetOriginId=='$WEBSITE_BUCKET_NAME'].Id" --output text)
+
+if [ ! -z "$DIST_ID" ]; then
+  aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+  echo "CloudFront invalidation created for distribution: $DIST_ID"
+else
+  echo "CloudFront distribution ID not found for bucket: $WEBSITE_BUCKET_NAME"
+fi
 
 echo "=================================================="
 echo "Deployment completed successfully!"
 echo "=================================================="
-echo "Next steps:"
+echo "Your application is now available at:"
+echo "$CLOUDFRONT_URL"
+echo ""
+echo "For local development:"
 echo "1. Navigate to the React app directory: cd ../vats"
-echo "2. Install dependencies: npm install"
-echo "3. Start the dev server: npm start"
+echo "2. Start the dev server: npm start"
 echo "=================================================="

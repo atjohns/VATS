@@ -3,13 +3,24 @@ import {
   signOut,
   getCurrentUser,
   signInWithRedirect,
-  fetchUserAttributes
+  fetchUserAttributes,
+  fetchAuthSession
 } from 'aws-amplify/auth';
 
+interface UserInfo {
+  username: string;
+  userId: string;
+  friendlyUsername?: string;
+  email?: string;
+  picture?: string;
+  groups?: string[]; // Add groups for admin check
+}
+
 interface AuthContextType {
-  user: any;
+  user: UserInfo | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean; // Add isAdmin flag
   signInWithGoogle: () => Promise<any>;
   signOut: () => Promise<void>;
 }
@@ -17,9 +28,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false); // Add isAdmin state
 
   useEffect(() => {
     checkAuth();
@@ -57,6 +69,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // For Google sign-in users (which is all we support now), get the proper profile
       try {
         const attributes = await fetchUserAttributes();
+        
+        // Check if user is in admin group by checking their Cognito tokens
+        const session = await fetchAuthSession();
+        const idToken = session.tokens?.idToken;
+        let userGroups: string[] = [];
+        let isUserAdmin = false;
+        
+        if (idToken) {
+          const payload = idToken.payload;
+          // Get Cognito groups from token if available
+          if (payload['cognito:groups']) {
+            userGroups = payload['cognito:groups'] as string[];
+            // Check if user is in the admin group
+            isUserAdmin = userGroups.includes('admin');
+          }
+        }
+        
+        // Update isAdmin state
+        setIsAdmin(isUserAdmin);
+        
         // Enhance the user object with attributes from Google
         setUser({
           ...userInfo,
@@ -67,18 +99,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               : (attributes.given_name || userInfo.username)),
           // Add other useful attributes
           email: attributes.email,
-          picture: attributes.picture
+          picture: attributes.picture,
+          groups: userGroups // Add groups to the user object
         });
       } catch (attrError) {
         console.error('Error fetching user attributes:', attrError);
         // If we can't get attributes, just use the basic user
         setUser(userInfo);
+        setIsAdmin(false);
       }
       
       setIsAuthenticated(true);
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
     } finally {
       setIsLoading(false);
     }
@@ -100,17 +135,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await signOut();
       setUser(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
     }
   };
 
-
   const value = {
     user,
     isAuthenticated,
     isLoading,
+    isAdmin, // Add isAdmin to the context value
     signInWithGoogle: handleSignInWithGoogle,
     signOut: handleSignOut,
   };

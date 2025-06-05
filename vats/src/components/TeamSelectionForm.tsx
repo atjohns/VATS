@@ -6,32 +6,42 @@ import {
   Box, 
   Typography, 
   CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
   Paper,
-  IconButton,
-  Avatar,
   Divider,
   Card,
   CardContent,
-  CardActions
+  CardActions,
+  FormHelperText,
+  Stack
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { getTeamSelections, updateTeamSelections, TeamSelection } from '../services/api';
-import { fbsTeams } from '../fbs-teams';
+import { fbsTeams, FBSTeam } from '../fbs-teams';
 
 const MAX_TEAMS = 8;
 
+// Define slot labels
+const SLOT_LABELS = [
+  'Ride or Die Team',
+  'SEC',
+  'ACC',
+  'Big Ten',
+  'Big 12',
+  'Wild Card',
+  'Non-P4', 
+  'Non-P4'
+];
+
 const TeamSelectionForm: React.FC = () => {
-  const [selectedTeams, setSelectedTeams] = useState<TeamSelection[]>([]);
+  // Initialize array with 8 null slots
+  const initialTeams = Array(MAX_TEAMS).fill(null);
+  
+  const [selectedTeams, setSelectedTeams] = useState<(TeamSelection | null)[]>(initialTeams);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [currentTeam, setCurrentTeam] = useState<TeamSelection | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [hasExistingSelections, setHasExistingSelections] = useState(false);
+  const [errors, setErrors] = useState<string[]>(Array(MAX_TEAMS).fill(''));
 
   // Data loading effect
   useEffect(() => {
@@ -76,11 +86,20 @@ const TeamSelectionForm: React.FC = () => {
         
         console.log('Valid teams after filtering:', validTeams);
         
+        // Create an array of MAX_TEAMS length with the valid teams or null
+        const teamsArray = Array(MAX_TEAMS).fill(null);
+        validTeams.forEach((team, index) => {
+          if (index < MAX_TEAMS) {
+            teamsArray[index] = team;
+          }
+        });
+        
         // Update state with valid team selections
-        setSelectedTeams(validTeams);
+        setSelectedTeams(teamsArray);
         
         // Check if user has full team selections already
-        const hasFullRoster = validTeams.length === MAX_TEAMS;
+        const hasFullRoster = validTeams.length === MAX_TEAMS && 
+                             validTeams.every(team => team !== null);
         console.log('Has full roster?', hasFullRoster, 'Count:', validTeams.length);
         
         setHasExistingSelections(hasFullRoster);
@@ -107,40 +126,55 @@ const TeamSelectionForm: React.FC = () => {
     console.log('Edit mode:', editMode);
     
     // Check if we're in read-only mode but have no teams to display
-    if (hasExistingSelections && !editMode && (!selectedTeams || selectedTeams.length === 0)) {
+    if (hasExistingSelections && !editMode && 
+        (!selectedTeams || selectedTeams.every(team => team === null))) {
       console.warn('No teams to display in read-only mode, forcing edit mode');
       setEditMode(true);
     }
   }, [selectedTeams, hasExistingSelections, editMode]);
 
-  const handleAddTeam = () => {
-    if (currentTeam && selectedTeams.length < MAX_TEAMS) {
-      if (!selectedTeams.some(team => team.schoolName === currentTeam.schoolName)) {
-        setSelectedTeams([...selectedTeams, currentTeam]);
-      } else {
-        alert('This team is already selected');
-      }
-      setCurrentTeam(null);
-    }
-  };
-
-  const handleRemoveTeam = (index: number) => {
+  const handleTeamChange = (index: number, newValue: FBSTeam | null) => {
     const newTeams = [...selectedTeams];
-    newTeams.splice(index, 1);
+    
+    // Check if this team is already selected in another slot
+    const isDuplicate = newValue && 
+      newTeams.some((team, i) => i !== index && team && team.id === newValue.id);
+    
+    if (isDuplicate) {
+      // Set error for this field
+      const newErrors = [...errors];
+      newErrors[index] = 'This team is already selected in another slot';
+      setErrors(newErrors);
+      return;
+    }
+    
+    // Clear error if exists
+    if (errors[index]) {
+      const newErrors = [...errors];
+      newErrors[index] = '';
+      setErrors(newErrors);
+    }
+    
+    // Cast the FBSTeam to TeamSelection since they have the same structure
+    newTeams[index] = newValue as TeamSelection | null;
     setSelectedTeams(newTeams);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    if (selectedTeams.length !== MAX_TEAMS) {
-      alert(`Please select exactly ${MAX_TEAMS} teams`);
+    // Check if all slots are filled
+    if (selectedTeams.some(team => team === null)) {
+      alert(`Please select a team for each slot`);
       return;
     }
     
+    // Filter out null values (this is just a safety check, shouldn't happen if all slots are filled)
+    const teamsToSave = selectedTeams.filter((team): team is TeamSelection => team !== null);
+    
     try {
       setSaving(true);
-      await updateTeamSelections(selectedTeams);
+      await updateTeamSelections(teamsToSave);
       alert('Team selections saved successfully');
       setHasExistingSelections(true);
       setEditMode(false); // Switch back to view mode after save
@@ -164,55 +198,47 @@ const TeamSelectionForm: React.FC = () => {
     );
   }
 
-
   // Read-only view for existing selections
   if (hasExistingSelections && !editMode) {
     console.log('RENDER: Read-only view with teams:', selectedTeams);
     
-    // We don't need the setTimeout here as it's handled in the useEffect above
-    // This prevents potential React warning about state updates during render
-    
     return (
-      <Box sx={{ maxWidth: 600, margin: '0 auto' }}>
-        <Typography variant="h5" gutterBottom>
-          Your College Football Roster
-        </Typography>
-        
+      <Box sx={{ maxWidth: 800, margin: '0 auto' }}>       
         <Card variant="outlined" sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              You've selected these {selectedTeams.length} teams for your roster
+            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
+              You've selected these teams for your roster
             </Typography>
             
-            {selectedTeams && selectedTeams.length > 0 ? (
-              <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-                {selectedTeams.map((team, index) => {
-                  console.log(`Rendering team ${index}:`, team);
-                  
-                  // Guard against invalid team objects
-                  if (!team || typeof team !== 'object') {
-                    console.warn(`Invalid team at index ${index}:`, team);
-                    return null;
-                  }
-                  
-                  // Extract team properties with fallbacks
-                  const { id, schoolName = 'Unknown School', teamName = '', location = '', conference = '' } = team;
-                  
-                  return (
-                    <ListItem key={id || `team-${index}`} divider={index < selectedTeams.length - 1}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {teamName ? teamName[0] : schoolName[0] || '?'}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={`${schoolName} ${teamName}`}
-                        secondary={location ? `${location}${conference ? ` • ${conference}` : ''}` : ''}
-                      />
-                    </ListItem>
-                  );
-                })}
-              </List>
+            {selectedTeams && selectedTeams.some(team => team !== null) ? (
+              <Box sx={{ maxHeight: 600, overflow: 'auto' }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  {selectedTeams.map((team, index) => {
+                    if (!team) return null;
+                    
+                    // Extract team properties with fallbacks
+                    const { id, schoolName = 'Unknown School', teamName = '', location = '', conference = '' } = team;
+                    
+                    return (
+                      <Paper 
+                        key={id || `team-${index}`}
+                        elevation={1} 
+                        sx={{ p: 2, width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33% - 16px)' } }}
+                      >
+                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                          {SLOT_LABELS[index]}
+                        </Typography>
+                        <Typography variant="body1">
+                          {schoolName} {teamName}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {location} • {conference}
+                        </Typography>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+              </Box>
             ) : (
               <Box sx={{ p: 2, textAlign: 'center' }}>
                 <Typography>No teams found in your selection.</Typography>
@@ -240,83 +266,57 @@ const TeamSelectionForm: React.FC = () => {
 
   // Edit mode or new selections
   return (
-    <Box sx={{ maxWidth: 600, margin: '0 auto' }}>
+    <Box sx={{ maxWidth: 800, margin: '0 auto' }}>
       <Typography variant="h5" gutterBottom>
         {hasExistingSelections ? 'Edit Your College Football Roster' : 'Select College Football Roster'}
       </Typography>
-      <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-        Choose {MAX_TEAMS} college football teams for your roster
+      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
+        Choose a college football team for each of the {MAX_TEAMS} slots
       </Typography>
       
       <form onSubmit={handleSubmit}>
-        <Box sx={{ mb: 3 }}>
-          <Autocomplete
-            id="team-select"
-            value={currentTeam}
-            onChange={(_, newValue) => setCurrentTeam(newValue)}
-            options={fbsTeams}
-            getOptionLabel={(option) => `${option.schoolName} ${option.teamName}`}
-            renderInput={(params) => <TextField {...params} label="Search for college teams" />}
-            isOptionEqualToValue={(option, value) => option.schoolName === value.schoolName}
-            renderOption={(props, option) => (
-              <li {...props}>
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <Avatar sx={{ width: 30, height: 30 }}>{option.teamName[0]}</Avatar>
-                  <Box sx={{ ml: 2 }}>
-                    <Typography variant="body2">
-                      <strong>{option.schoolName}</strong> {option.teamName} 
-                      <Typography variant="caption" component="span" sx={{ ml: 1, color: 'text.secondary' }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          {SLOT_LABELS.map((label, index) => (
+            <Box key={`slot-${index}`} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)' } }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                {label}
+              </Typography>
+              <Autocomplete
+                id={`team-select-${index}`}
+                value={selectedTeams[index] as FBSTeam | null}
+                onChange={(_, newValue) => handleTeamChange(index, newValue)}
+                options={fbsTeams}
+                getOptionLabel={(option) => `${option.schoolName} ${option.teamName}`}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    error={!!errors[index]}
+                  />
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderOption={(props, option) => (
+                  <li {...props}>
+                    <Box>
+                      <Typography variant="body2">
+                        <strong>{option.schoolName}</strong> {option.teamName} 
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
                         {option.location} • {option.conference}
                       </Typography>
-                    </Typography>
-                  </Box>
-                </Box>
-              </li>
-            )}
-          />
-          <Button
-            variant="outlined"
-            onClick={handleAddTeam}
-            disabled={!currentTeam || selectedTeams.length >= MAX_TEAMS}
-            sx={{ mt: 1 }}
-          >
-            Add Team
-          </Button>
+                    </Box>
+                  </li>
+                )}
+              />
+              {errors[index] && <FormHelperText error>{errors[index]}</FormHelperText>}
+            </Box>
+          ))}
         </Box>
-
-        <Paper elevation={2} sx={{ mb: 3, maxHeight: 400, overflow: 'auto' }}>
-          <List>
-            {selectedTeams.map((team, index) => (
-              <ListItem
-                key={team.id || `team-${index}`}
-                secondaryAction={
-                  <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveTeam(index)}>
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                <ListItemAvatar>
-                  <Avatar>{team.teamName[0]}</Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={`${team.schoolName} ${team.teamName}`}
-                  secondary={`${team.location} • ${team.conference}`}
-                />
-              </ListItem>
-            ))}
-            {selectedTeams.length === 0 && (
-              <ListItem>
-                <ListItemText primary="No teams selected yet" />
-              </ListItem>
-            )}
-          </List>
-        </Paper>
         
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
           <Typography variant="body2" color="text.secondary">
-            {selectedTeams.length} of {MAX_TEAMS} teams selected
+            {selectedTeams.filter(team => team !== null).length} of {MAX_TEAMS} slots filled
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Stack direction="row" spacing={2}>
             {hasExistingSelections && (
               <Button
                 variant="outlined"
@@ -330,11 +330,11 @@ const TeamSelectionForm: React.FC = () => {
               type="submit"
               variant="contained"
               color="primary"
-              disabled={saving || selectedTeams.length !== MAX_TEAMS}
+              disabled={saving || selectedTeams.some(team => team === null)}
             >
               {saving ? <CircularProgress size={24} /> : 'Save Selections'}
             </Button>
-          </Box>
+          </Stack>
         </Box>
       </form>
     </Box>

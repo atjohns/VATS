@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import GoogleIcon from '@mui/icons-material/Google';
+import vatsLogo from '../assets/vats.png';
 
 const SignIn: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -46,16 +47,28 @@ const SignIn: React.FC = () => {
           maxWidth: 400, 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: 2 
+          gap: 2,
+          alignItems: 'center'
         }}
       >
-        <Typography variant="h4" component="h1" align="center" gutterBottom>
-          Welcome to V.A.T.S.
-        </Typography>
-        
-        <Typography variant="subtitle1" align="center" color="text.secondary" gutterBottom>
-          Various Amateur Tournaments Showdown
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <img 
+            src={vatsLogo} 
+            alt="VATS Logo" 
+            style={{ 
+              height: 60,
+              marginRight: 12
+            }} 
+          />
+          <Box>
+            <Typography variant="h4" component="h1" align="center" gutterBottom>
+              V.A.T.S.
+            </Typography>
+            <Typography variant="subtitle1" align="center" color="text.secondary">
+              Various Amateur Tournaments Showdown
+            </Typography>
+          </Box>
+        </Box>
         
         {error && (
           <Typography color="error" align="center">

@@ -1,0 +1,427 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Container,
+  Box,
+  Typography,
+  Paper,
+  Button,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  AppBar,
+  Toolbar,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  Alert,
+  IconButton,
+  InputAdornment
+} from '@mui/material';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import vatsLogo from '../assets/vats.png';
+import { getUserTeamSelections, updateUserTeamSelections, getAllUsers } from '../services/api';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import SearchIcon from '@mui/icons-material/Search';
+
+interface User {
+  userId: string;
+  username: string;
+  email?: string;
+  name?: string;
+}
+
+interface TeamSelection {
+  id?: string;
+  schoolName: string;
+  teamName: string;
+  location: string;
+  conference: string;
+  selectionType?: string; // For categorizing (ride_or_die, sec, acc, etc.)
+}
+
+const Admin: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [teamSelections, setTeamSelections] = useState<TeamSelection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<TeamSelection | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const { signOut, isAdmin } = useAuth(); // Remove unused 'user' variable
+  const navigate = useNavigate();
+
+  // Load all users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const fetchedUsers = await getAllUsers();
+        setUsers(fetchedUsers);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+        setError('Failed to load users. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // Load selected user's team selections
+  useEffect(() => {
+    if (selectedUser) {
+      const fetchTeamSelections = async () => {
+        try {
+          setLoadingTeams(true);
+          const selections = await getUserTeamSelections(selectedUser.userId);
+          setTeamSelections(selections);
+          setError(null);
+        } catch (err) {
+          console.error(`Failed to fetch team selections for user ${selectedUser.userId}:`, err);
+          setError('Failed to load team selections. Please try again later.');
+          setTeamSelections([]);
+        } finally {
+          setLoadingTeams(false);
+        }
+      };
+
+      fetchTeamSelections();
+    }
+  }, [selectedUser]);
+
+  const handleUserSelect = (user: User) => {
+    setSelectedUser(user);
+  };
+
+  const handleEditTeam = (team: TeamSelection) => {
+    setEditingTeam({...team});
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveTeam = async () => {
+    if (!editingTeam || !selectedUser) return;
+    
+    try {
+      // Update the team in the local state
+      const updatedSelections = teamSelections.map(team => 
+        team.id === editingTeam.id ? editingTeam : team
+      );
+      
+      // Save to the backend
+      await updateUserTeamSelections(selectedUser.userId, updatedSelections);
+      
+      // Update local state
+      setTeamSelections(updatedSelections);
+      setEditDialogOpen(false);
+      setSaveSuccess(true);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to save team:', err);
+      setError('Failed to save changes. Please try again.');
+    }
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingTeam(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingTeam) return;
+    
+    const { name, value } = e.target;
+    setEditingTeam({
+      ...editingTeam,
+      [name]: value
+    });
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/signin');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Redirect if not admin
+  if (!isAdmin) {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography variant="h4" color="error" gutterBottom>
+          Access Denied
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          You do not have permission to access this page.
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary"
+          onClick={() => navigate('/home')}
+        >
+          Return to Home
+        </Button>
+      </Container>
+    );
+  }
+
+  return (
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <img 
+              src={vatsLogo} 
+              alt="VATS Logo" 
+              style={{ 
+                height: 40,
+                marginRight: 12
+              }} 
+            />
+            <Typography variant="h6" component="div">
+              V.A.T.S. Admin
+            </Typography>
+          </Box>
+          <Button 
+            color="inherit" 
+            onClick={() => navigate('/home')}
+            startIcon={<ArrowBackIcon />}
+            sx={{ mr: 2 }}
+          >
+            Back to Home
+          </Button>
+          <Button 
+            color="inherit" 
+            onClick={handleSignOut}
+          >
+            Sign Out
+          </Button>
+        </Toolbar>
+      </AppBar>
+
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {saveSuccess && <Alert severity="success" sx={{ mb: 2 }}>Changes saved successfully!</Alert>}
+        
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {/* User Selection Panel */}
+          <Paper sx={{ width: 300, p: 2, maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
+            <Typography variant="h6" gutterBottom>Users</Typography>
+            <Box sx={{ display: 'flex', mb: 2 }}>
+              <TextField
+                fullWidth
+                placeholder="Search users..."
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+            
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <List>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <React.Fragment key={user.userId}>
+                      <ListItemButton
+                        selected={selectedUser?.userId === user.userId}
+                        onClick={() => handleUserSelect(user)}
+                      >
+                        <ListItemText 
+                          primary={user.name || user.username} 
+                          secondary={user.email}
+                        />
+                      </ListItemButton>
+                      <Divider />
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <ListItem>
+                    <ListItemText primary="No users found" />
+                  </ListItem>
+                )}
+              </List>
+            )}
+          </Paper>
+
+          {/* Team Selections Display */}
+          <Paper sx={{ flexGrow: 1, p: 2, maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
+            {selectedUser ? (
+              <>
+                <Typography variant="h6" gutterBottom>
+                  Team Selections for {selectedUser.name || selectedUser.username}
+                </Typography>
+                
+                {loadingTeams ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : teamSelections.length > 0 ? (
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>School</TableCell>
+                          <TableCell>Team Name</TableCell>
+                          <TableCell>Conference</TableCell>
+                          <TableCell>Location</TableCell>
+                          <TableCell>Selection Type</TableCell>
+                          <TableCell>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {teamSelections.map((team) => (
+                          <TableRow key={team.id}>
+                            <TableCell>{team.schoolName}</TableCell>
+                            <TableCell>{team.teamName}</TableCell>
+                            <TableCell>{team.conference}</TableCell>
+                            <TableCell>{team.location}</TableCell>
+                            <TableCell>{team.selectionType || 'N/A'}</TableCell>
+                            <TableCell>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleEditTeam(team)}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
+                    No team selections found for this user.
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
+                Select a user from the list to view their team selections.
+              </Typography>
+            )}
+          </Paper>
+        </Box>
+      </Container>
+      
+      {/* Edit Team Dialog */}
+      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Team</DialogTitle>
+        <DialogContent>
+          <Box component="form" sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="schoolName"
+              label="School Name"
+              name="schoolName"
+              value={editingTeam?.schoolName || ''}
+              onChange={handleInputChange}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="teamName"
+              label="Team Name"
+              name="teamName"
+              value={editingTeam?.teamName || ''}
+              onChange={handleInputChange}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="conference"
+              label="Conference"
+              name="conference"
+              value={editingTeam?.conference || ''}
+              onChange={handleInputChange}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="location"
+              label="Location"
+              name="location"
+              value={editingTeam?.location || ''}
+              onChange={handleInputChange}
+            />
+            <TextField
+              margin="normal"
+              fullWidth
+              id="selectionType"
+              label="Selection Type"
+              name="selectionType"
+              value={editingTeam?.selectionType || ''}
+              onChange={handleInputChange}
+              helperText="e.g. ride_or_die, sec, acc, big10, big12, non_p4, wild_card"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleCloseEditDialog} 
+            startIcon={<CancelIcon />}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveTeam} 
+            color="primary"
+            startIcon={<SaveIcon />}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default Admin;

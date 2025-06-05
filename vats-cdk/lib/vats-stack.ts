@@ -5,6 +5,10 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 
 // Custom interface for stack props that includes Google Auth client details
 export interface VatsStackProps extends cdk.StackProps {
@@ -32,6 +36,58 @@ export class VatsStack extends cdk.Stack {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    
+    // Create S3 bucket for static website hosting
+    const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Only for dev environments
+      autoDeleteObjects: true, // Only for dev environments
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED
+    });
+    
+    // CloudFront Origin Access Identity
+    const cloudfrontOAI = new cloudfront.OriginAccessIdentity(this, 'CloudFrontOAI', {
+      comment: 'OAI for VATS web app'
+    });
+    
+    // Grant CloudFront permissions to access the bucket
+    websiteBucket.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject'],
+      resources: [websiteBucket.arnForObjects('*')],
+      principals: [new iam.CanonicalUserPrincipal(
+        cloudfrontOAI.cloudFrontOriginAccessIdentityS3CanonicalUserId
+      )]
+    }));
+
+    // Create CloudFront distribution
+    const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      defaultRootObject: 'index.html',
+      defaultBehavior: {
+        origin: new origins.S3Origin(websiteBucket, {
+          originAccessIdentity: cloudfrontOAI
+        }),
+        compress: true,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.minutes(0)
+        },
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.minutes(0)
+        }
+      ]
     });
 
     // Create Cognito User Pool for authentication with both Cognito and Google
@@ -66,6 +122,9 @@ export class VatsStack extends cdk.Stack {
     // Extract Google OAuth credentials from props
     const googleClientId = props?.env?.googleAuthClientId;
     const googleClientSecret = props?.env?.googleAuthClientSecret;
+    
+    // Generate CloudFront URLs for OAuth callbacks
+    const cloudfrontUrl = `https://${distribution.distributionDomainName}`;
 
     // Create app client with support for Google OAuth
     const userPoolClient = new cognito.UserPoolClient(this, 'VatsUserPoolClient', {
@@ -93,9 +152,13 @@ export class VatsStack extends cdk.Stack {
         callbackUrls: [
           'http://localhost:3000',
           'http://localhost:3000/home',
+          `${cloudfrontUrl}`,
+          `${cloudfrontUrl}/home`,
+          `${cloudfrontUrl}/admin`,
         ],
         logoutUrls: [
           'http://localhost:3000',
+          `${cloudfrontUrl}`,
         ],
       },
     });
@@ -207,10 +270,10 @@ export class VatsStack extends cdk.Stack {
     usersTable.grantReadWriteData(apiLambda);
     teamSelectionsTable.grantReadWriteData(apiLambda);
 
-    // Create API Gateway with basic CORS support
+    // Create API Gateway with CORS support for CloudFront domains
     const api = new apigateway.RestApi(this, 'VatsApi', {
       defaultCorsPreflightOptions: {
-        allowOrigins: ['*'],
+        allowOrigins: ['*'], // In production, restrict this to specific domains
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
       }
@@ -300,6 +363,34 @@ export class VatsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: standardMethodResponses
     });
+    
+    // Add admin endpoints
+    const admin = api.root.addResource('admin');
+    const adminUsers = admin.addResource('users');
+    
+    // Add GET method for listing all users (admin only)
+    adminUsers.addMethod('GET', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
+    
+    // Add resource for specific user operations by admin
+    const adminUserProfile = adminUsers.addResource('{userId}');
+    const adminTeamSelections = adminUserProfile.addResource('team-selections');
+    
+    // Add methods for admin to view and edit user team selections
+    adminTeamSelections.addMethod('GET', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
+    
+    adminTeamSelections.addMethod('PUT', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
 
     // Output important resources
     new cdk.CfnOutput(this, 'UserPoolId', {
@@ -318,6 +409,13 @@ export class VatsStack extends cdk.Stack {
       value: api.url,
     });
     
+    new cdk.CfnOutput(this, 'WebsiteBucketName', {
+      value: websiteBucket.bucketName,
+    });
+
+    new cdk.CfnOutput(this, 'CloudFrontURL', {
+      value: cloudfrontUrl,
+    });
     
     // Output OAuth domain URL if Google auth is enabled
     if (googleProvider) {
@@ -338,7 +436,7 @@ export class VatsStack extends cdk.Stack {
       
       new cdk.CfnOutput(this, 'HostedUISignInUrl', {
         value: domain.signInUrl(userPoolClient, {
-          redirectUri: 'http://localhost:3000/home',
+          redirectUri: cloudfrontUrl + '/home',
         }),
       });
     } else {

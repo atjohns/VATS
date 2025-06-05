@@ -14,6 +14,7 @@ import {
 import TeamSelectionForm from '../components/TeamSelectionForm';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import vatsLogo from '../assets/vats.png';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -44,7 +45,7 @@ function TabPanel(props: TabPanelProps) {
 const Home: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
-  const { user, signOut, isLoading } = useAuth();
+  const { user, signOut, isLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -75,9 +76,19 @@ const Home: React.FC = () => {
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            V.A.T.S.
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <img 
+              src={vatsLogo} 
+              alt="VATS Logo" 
+              style={{ 
+                height: 40,
+                marginRight: 12
+              }} 
+            />
+            <Typography variant="h6" component="div">
+              V.A.T.S.
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
             <Avatar 
               src={user?.picture} 
@@ -88,6 +99,22 @@ const Home: React.FC = () => {
               {user?.friendlyUsername || user?.username || 'User'}
             </Typography>
           </Box>
+          <Button 
+            color="inherit" 
+            onClick={() => window.open("https://docs.google.com/document/d/1mb4BbbiSpCG0faw9xfS0WTnc7c6StA57wGuTWwpl4WI/edit?usp=sharing", "_blank", "noopener,noreferrer")}
+            sx={{ mr: 2 }}
+          >
+            Rules
+          </Button>
+          {isAdmin && (
+            <Button 
+              color="inherit" 
+              onClick={() => navigate('/admin')}
+              sx={{ mr: 2 }}
+            >
+              Admin
+            </Button>
+          )}
           <Button 
             color="inherit" 
             onClick={handleSignOut}

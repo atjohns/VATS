@@ -4,7 +4,9 @@
     "UserPoolDomain": "https://vats-app.auth.us-east-1.amazoncognito.com",
     "UserPoolId": "us-east-1_uYyr7tAKF",
     "ApiUrl": "https://v1rb6qyxbj.execute-api.us-east-1.amazonaws.com/prod/",
-    "HostedUISignInUrl": "https://vats-app.auth.us-east-1.amazoncognito.com/login?client_id=6cp505d5605l8fc9de1s4o9b4b&response_type=code&redirect_uri=http://localhost:3000/home",
+    "CloudFrontURL": "https://db2s7caqtyt4q.cloudfront.net",
+    "WebsiteBucketName": "vatsstack-websitebucket75c24d94-4tjf6ykqszbo",
+    "HostedUISignInUrl": "https://vats-app.auth.us-east-1.amazoncognito.com/login?client_id=6cp505d5605l8fc9de1s4o9b4b&response_type=code&redirect_uri=https://db2s7caqtyt4q.cloudfront.net/home",
     "IdentityPoolId": "us-east-1:736b02c1-ff68-4822-bff0-5b98b7e83b3f",
     "VatsApiEndpointB8F1BADD": "https://v1rb6qyxbj.execute-api.us-east-1.amazonaws.com/prod/",
     "GoogleAuthEnabled": "true"
