@@ -76,19 +76,15 @@ export const configureAmplify = () => {
   cognitoUserPoolsTokenProvider.setKeyValueStorage({
     getItem: async (key: string) => {
       const value = localStorage.getItem(key);
-      console.log('Storage key accessed:', key, 'exists:', !!value);
       return value;
     },
     setItem: async (key: string, value: string) => {
-      console.log('Storage setting key:', key);
       localStorage.setItem(key, value);
     },
     removeItem: async (key: string) => {
-      console.log('Storage removing key:', key);
       localStorage.removeItem(key);
     },
     clear: async () => {
-      console.log('Storage clearing all');
       localStorage.clear();
     }
   });

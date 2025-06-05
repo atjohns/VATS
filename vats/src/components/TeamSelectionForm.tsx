@@ -48,33 +48,27 @@ const TeamSelectionForm: React.FC = () => {
     const fetchTeamSelections = async () => {
       try {
         setLoading(true);
-        console.log('Fetching team selections from API...');
         
         // Get team selections from API
         const selections = await getTeamSelections();
-        console.log('Raw data from API:', selections);
         
         // Ensure selections is always an array with valid team objects
         let teamSelectionsArray = [];
         
         if (Array.isArray(selections)) {
           teamSelectionsArray = selections;
-          console.log('Selections is already an array with length:', selections.length);
         } else if (selections && typeof selections === 'object') {
           // Try to extract teamSelections property if it exists
           const extractedSelections = (selections as any).teamSelections;
           if (Array.isArray(extractedSelections)) {
             teamSelectionsArray = extractedSelections;
-            console.log('Extracted teamSelections array with length:', extractedSelections.length);
           } else {
             console.warn('Could not extract teamSelections array from object:', selections);
           }
         } else {
           console.warn('API returned invalid selections format:', typeof selections);
         }
-        
-        console.log('Final processed team selections:', teamSelectionsArray);
-        
+               
         // Validate each team object to ensure it has the required properties
         const validTeams = teamSelectionsArray.filter(team => {
           const isValid = Boolean(team && typeof team === 'object' && team.schoolName);
@@ -83,9 +77,7 @@ const TeamSelectionForm: React.FC = () => {
           }
           return isValid;
         });
-        
-        console.log('Valid teams after filtering:', validTeams);
-        
+                
         // Create an array of MAX_TEAMS length with the valid teams or null
         const teamsArray = Array(MAX_TEAMS).fill(null);
         validTeams.forEach((team, index) => {
@@ -100,13 +92,11 @@ const TeamSelectionForm: React.FC = () => {
         // Check if user has full team selections already
         const hasFullRoster = validTeams.length === MAX_TEAMS && 
                              validTeams.every(team => team !== null);
-        console.log('Has full roster?', hasFullRoster, 'Count:', validTeams.length);
         
         setHasExistingSelections(hasFullRoster);
         
         // Start in view mode if user already has selections
         setEditMode(!hasFullRoster);
-        console.log('Setting edit mode to:', !hasFullRoster);
         
       } catch (error) {
         console.error('Error fetching team selections:', error);
@@ -120,11 +110,7 @@ const TeamSelectionForm: React.FC = () => {
   }, []);
 
   // Effect to handle empty teams in read-only mode
-  useEffect(() => {
-    console.log('Changed selections state:', selectedTeams);
-    console.log('Has existing selections:', hasExistingSelections);
-    console.log('Edit mode:', editMode);
-    
+  useEffect(() => {   
     // Check if we're in read-only mode but have no teams to display
     if (hasExistingSelections && !editMode && 
         (!selectedTeams || selectedTeams.every(team => team === null))) {
@@ -199,9 +185,7 @@ const TeamSelectionForm: React.FC = () => {
   }
 
   // Read-only view for existing selections
-  if (hasExistingSelections && !editMode) {
-    console.log('RENDER: Read-only view with teams:', selectedTeams);
-    
+  if (hasExistingSelections && !editMode) {    
     return (
       <Box sx={{ maxWidth: 800, margin: '0 auto' }}>       
         <Card variant="outlined" sx={{ mb: 3 }}>

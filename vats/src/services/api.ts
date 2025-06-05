@@ -112,26 +112,18 @@ export const getTeamSelections = async (): Promise<TeamSelection[]> => {
     
     // Get current user ID
     const { userId } = await getCurrentUser();
-    console.log('Current user ID:', userId);
-    
-    // Debug authentication session
     const session = await fetchAuthSession();
-    console.log('Auth session exists:', !!session);
-    console.log('Access token exists:', !!session.tokens?.accessToken);
-    console.log('ID token exists:', !!session.tokens?.idToken);
+
     
     // Use ID token instead of access token for Cognito User Pools Authorizer
     // This is because API Gateway Cognito Authorizer requires ID token, not access token
     const token = session.tokens?.idToken?.toString() || '';
-    console.log('Using ID Token! Preview (first 20 chars):', token.substring(0, 20));
     
     // Create request headers with token
     const headers = {
       Authorization: `Bearer ${token}`
     };
-    console.log('Setting request headers:', headers);
-    
-    console.log('Making API request to:', `/users/${userId}/team-selections`);
+
     let responseBody;
     try {
       // Make API request
