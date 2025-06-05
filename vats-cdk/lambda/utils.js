@@ -40,17 +40,49 @@ function authorizeUser(event, requestedUserId) {
     console.log('Authenticated user ID:', authenticatedUserId);
     console.log('Requested user ID:', requestedUserId);
     
-    if (authenticatedUserId !== requestedUserId) {
-      console.log(`Unauthorized: Authenticated user ${authenticatedUserId} tried to access data for ${requestedUserId}`);
-      return {
-        authorized: false,
-        response: createCorsResponse(403, { 
-          message: 'Forbidden: You can only access your own data'
-        })
-      };
+    // Check if user is in the admin group
+    console.log('Claims:', JSON.stringify(claims, null, 2));
+    
+    // Method 1: Check for cognito:groups in token claims
+    let isAdmin = false;
+    const userGroups = claims['cognito:groups'] || [];
+    if (Array.isArray(userGroups) && userGroups.includes('admins')) {
+      isAdmin = true;
     }
     
-    return { authorized: true };
+    console.log('User groups:', JSON.stringify(userGroups));
+    console.log('Is admin:', isAdmin);
+    
+    // Check if this is an admin endpoint check
+    if (requestedUserId === 'admin-check') {
+      if (isAdmin) {
+        console.log('Admin access granted');
+        return { authorized: true, isAdmin: true };
+      } else {
+        console.log('Admin access denied - not an admin user');
+        return {
+          authorized: false,
+          response: createCorsResponse(403, { 
+            message: 'Forbidden: Admin access required'
+          })
+        };
+      }
+    }
+    
+    // If user is admin or accessing their own data, authorize
+    if (isAdmin || authenticatedUserId === requestedUserId) {
+      console.log(isAdmin ? 'Admin access granted' : 'Self access granted');
+      return { authorized: true, isAdmin };
+    }
+    
+    // Otherwise deny access
+    console.log(`Unauthorized: Authenticated user ${authenticatedUserId} tried to access data for ${requestedUserId}`);
+    return {
+      authorized: false,
+      response: createCorsResponse(403, { 
+        message: 'Forbidden: You can only access your own data'
+      })
+    };
   }
   
   console.log('No claims found in request');

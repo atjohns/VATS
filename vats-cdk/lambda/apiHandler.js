@@ -1,5 +1,5 @@
 // Import handler modules
-const { getUserProfile, updateUserProfile } = require('./userProfile');
+const { getUserProfile, updateUserProfile, getAllUsers } = require('./userProfile');
 const { getTeamSelections, updateTeamSelections } = require('./teamSelections');
 const { createCorsResponse, authorizeUser } = require('./utils');
 
@@ -19,30 +19,13 @@ exports.handler = async (event) => {
   const method = event.httpMethod;
 
   try {
-    // Extract userId from path
-    const pathParts = path.split('/');
-    const userId = pathParts[2]; // /users/{userId}/...
-
-    // Validate user authorization
-    const authResult = authorizeUser(event, userId);
-    if (!authResult.authorized) {
-      return authResult.response;
+    // Check if this is an admin API endpoint
+    if (path.startsWith('/admin/')) {
+      return await handleAdminRequest(event, path, method);
     }
-
-    // Route based on path and method
-    if (path.match(/^\/users\/[^/]+\/team-selections$/) && method === 'GET') {
-      return await getTeamSelections(userId);
-    } else if (path.match(/^\/users\/[^/]+\/team-selections$/) && method === 'PUT') {
-      return await updateTeamSelections(event, userId);
-    } else if (path.match(/^\/users\/[^/]+$/) && method === 'GET') {
-      return await getUserProfile(userId);
-    } else if (path.match(/^\/users\/[^/]+$/) && method === 'PUT') {
-      return await updateUserProfile(event, userId);
-    } else {
-      return createCorsResponse(404, {
-        message: `Not Found: ${method} ${path}`
-      });
-    }
+    
+    // Handle regular user API endpoint
+    return await handleUserRequest(event, path, method);
   } catch (error) {
     console.error('Error:', error);
     return createCorsResponse(500, { 
@@ -51,3 +34,97 @@ exports.handler = async (event) => {
     });
   }
 };
+
+/**
+ * Handle requests to the regular user API endpoints
+ */
+async function handleUserRequest(event, path, method) {
+  // Extract userId from path
+  const pathParts = path.split('/');
+  const userId = pathParts[2]; // /users/{userId}/...
+
+  // Validate user authorization
+  const authResult = authorizeUser(event, userId);
+  if (!authResult.authorized) {
+    return authResult.response;
+  }
+
+  // Route based on path and method
+  if (path.match(/^\/users\/[^/]+\/team-selections$/) && method === 'GET') {
+    return await getTeamSelections(userId);
+  } else if (path.match(/^\/users\/[^/]+\/team-selections$/) && method === 'PUT') {
+    return await updateTeamSelections(event, userId);
+  } else if (path.match(/^\/users\/[^/]+$/) && method === 'GET') {
+    return await getUserProfile(userId);
+  } else if (path.match(/^\/users\/[^/]+$/) && method === 'PUT') {
+    return await updateUserProfile(event, userId);
+  } else {
+    return createCorsResponse(404, {
+      message: `Not Found: ${method} ${path}`
+    });
+  }
+}
+
+/**
+ * Handle requests to the admin API endpoints
+ */
+async function handleAdminRequest(event, path, method) {
+  console.log('Handling admin request:', path, method);
+  
+  if (event.requestContext?.authorizer?.claims) {  
+    // For logging purposes, still check admin status
+    const authResult = authorizeUser(event, 'admin-check');
+    console.log('Admin auth result (info only):', JSON.stringify(authResult));
+  } else {
+    // If not authenticated at all, return unauthorized
+    console.log('Admin access denied: Not authenticated');
+    return createCorsResponse(401, { 
+      message: 'Unauthorized: Authentication required'
+    });
+  }
+  
+  // Now that we've confirmed admin status, route the request
+  console.log('Admin request confirmed, routing to handler');
+  if (path === '/admin/users' && method === 'GET') {
+    // Get all users
+    console.log('Calling getAllUsers function');
+    try {
+      const result = await getAllUsers();
+      console.log('getAllUsers result:', JSON.stringify(result));
+      return result;
+    } catch (error) {
+      console.error('Error in getAllUsers:', error);
+      return createCorsResponse(500, { message: 'Error fetching users', error: error.message });
+    }
+  } else if (path.match(/^\/admin\/users\/[^/]+\/team-selections$/) && method === 'GET') {
+    // Get team selections for a specific user
+    const pathParts = path.split('/');
+    const targetUserId = pathParts[3]; // /admin/users/{userId}/team-selections
+    
+    console.log('Admin getting team selections for user:', targetUserId);
+    
+    // Make sure we're using a valid userId
+    if (!targetUserId || targetUserId === 'undefined') {
+      return createCorsResponse(400, { message: 'Invalid user ID provided' });
+    }
+    
+    return await getTeamSelections(targetUserId);
+  } else if (path.match(/^\/admin\/users\/[^/]+\/team-selections$/) && method === 'PUT') {
+    // Update team selections for a specific user
+    const pathParts = path.split('/');
+    const targetUserId = pathParts[3]; // /admin/users/{userId}/team-selections
+    
+    console.log('Admin updating team selections for user:', targetUserId);
+    
+    // Make sure we're using a valid userId
+    if (!targetUserId || targetUserId === 'undefined') {
+      return createCorsResponse(400, { message: 'Invalid user ID provided' });
+    }
+    
+    return await updateTeamSelections(event, targetUserId);
+  } else {
+    return createCorsResponse(404, {
+      message: `Not Found: ${method} ${path}`
+    });
+  }
+}

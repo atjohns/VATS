@@ -29,13 +29,6 @@ export const fbsTeams: FBSTeam[] = [
     "conference": "SEC"
   },
   {
-    "id": "b2b23c56-30b4-4899-a18e-045a0a6095b9",
-    "teamName": "Blazers",
-    "schoolName": "University of Alabama at Birmingham",
-    "location": "Birmingham, AL",
-    "conference": "AAC"
-  },
-  {
     "id": "1f8f03ae-7732-464b-975c-f3c9ed991f92",
     "teamName": "Lobos",
     "schoolName": "University of New Mexico",

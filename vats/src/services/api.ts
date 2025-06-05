@@ -1,99 +1,5 @@
 import { get, put } from 'aws-amplify/api';
 
-// Profile management
-export interface UserProfile {
-  userId: string;
-  name: string;
-  profilePictureUrl?: string;
-}
-
-export const getUserProfile = async (): Promise<UserProfile> => {
-  try {
-    // Import auth functions in a way that doesn't trigger TypeScript warning
-    const authModule = await import('aws-amplify/auth');
-    const { getCurrentUser, fetchAuthSession } = authModule;
-    
-    // Get current user ID
-    const { userId } = await getCurrentUser();
-    
-    // Get authentication session
-    const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString() || '';
-    
-    // Create request headers with token
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
-    
-    // Make API request
-    const getPromise = get({
-      apiName: 'VatsApi',
-      path: `/users/${userId}`,
-      options: {
-        headers: headers
-      }
-    });
-    
-    // Get the response
-    const response = getPromise;
-    return (response as any).body;
-  } catch (error) {
-    console.error('Error getting user profile:', error);
-    throw error;
-  }
-};
-
-export const updateUserProfile = async (name: string, profilePicture?: File): Promise<UserProfile> => {
-  try {
-    // Import auth functions
-    const authModule = await import('aws-amplify/auth');
-    const { getCurrentUser, fetchAuthSession } = authModule;
-    
-    // Get current user ID
-    const { userId } = await getCurrentUser();
-    
-    // Get authentication session
-    const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString() || '';
-    
-    // Create request headers with token
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
-    
-    let profilePictureBase64;
-    if (profilePicture) {
-      // Convert the file to base64
-      const reader = new FileReader();
-      profilePictureBase64 = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(profilePicture);
-      });
-    }
-    
-    // Make API request
-    const putPromise = put({
-      apiName: 'VatsApi',
-      path: `/users/${userId}`,
-      options: {
-        headers: headers,
-        body: JSON.stringify({
-          name,
-          profilePictureBase64,
-        })
-      } as any
-    });
-    
-    // Get the response
-    const response = putPromise;
-    
-    return (response as any).body;
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
-  }
-};
-
 // Team selections management
 export interface TeamSelection {
   id?: string;
@@ -104,71 +10,64 @@ export interface TeamSelection {
   selectionType?: string; // Added for admin functionality
 }
 
-export const getTeamSelections = async (): Promise<TeamSelection[]> => {
+/**
+ * Common function to get team selections for a user (either for self or as admin)
+ */
+export const getTeamSelections = async (userId: string, admin: boolean): Promise<TeamSelection[]> => {
   try {
     // Import auth functions
     const authModule = await import('aws-amplify/auth');
-    const { getCurrentUser, fetchAuthSession } = authModule;
-    
-    // Get current user ID
-    const { userId } = await getCurrentUser();
-    const session = await fetchAuthSession();
+    const { fetchAuthSession } = authModule;
 
-    
-    // Use ID token instead of access token for Cognito User Pools Authorizer
-    // This is because API Gateway Cognito Authorizer requires ID token, not access token
+    // Get authentication session
+    const session = await fetchAuthSession();
     const token = session.tokens?.idToken?.toString() || '';
     
     // Create request headers with token
     const headers = {
       Authorization: `Bearer ${token}`
     };
-
-    let responseBody;
-    try {
-      // Make API request
-      const getPromise = get({
-        apiName: 'VatsApi',
-        path: `/users/${userId}/team-selections`,
-        options: {
-          headers: headers
-        }
-      });
-      
-      // Get the response
-      const { body } = await getPromise.response;
-      responseBody = await body.text();
-    } catch (err) {
-      console.error('API request failed:', err);
-      throw err;
-    }
-
-    let teamSelectionsFromResponse;
-
+    
+    // Determine path based on whether this is an admin request or not
+    const path = admin 
+      ? `/admin/users/${userId}/team-selections`  // Admin accessing another user
+      : `/users/${userId}/team-selections`;       // User accessing own data
+    
+    console.log(`Getting team selections from ${path}`);
+    
+    // Make API request
+    const getPromise = get({
+      apiName: 'VatsApi',
+      path,
+      options: { headers }
+    });
+    
+    // Get and parse the response
+    const { body } = await getPromise.response;
+    const responseBody = await body.text();
+    
     try {
       const parsedBody = JSON.parse(responseBody);
-      console.log('Parsed body:', parsedBody);
-      teamSelectionsFromResponse = parsedBody.teamSelections;
+      console.log('Team selections response:', parsedBody);
+      return parsedBody.teamSelections || [];
     } catch (e) {
       console.error('Error parsing response body:', e);
+      return [];
     }
-    
-    // Return teamSelections if it exists, otherwise an empty array
-    return teamSelectionsFromResponse || [];
   } catch (error) {
-    console.error('Error getting team selections:', error);
+    console.error(`Error getting team selections${userId ? ` for user ${userId}` : ''}:`, error);
     throw error;
   }
 };
 
-export const updateTeamSelections = async (teamSelections: TeamSelection[]): Promise<TeamSelection[]> => {
+/**
+ * Common function to update team selections for a user (either self or as admin)
+ */
+export const updateTeamSelections = async (teamSelections: TeamSelection[], userId: string, admin: boolean): Promise<TeamSelection[]> => {
   try {
-    // Import and use auth functions
+    // Import auth functions
     const authModule = await import('aws-amplify/auth');
-    const { getCurrentUser, fetchAuthSession } = authModule;
-    
-    // Get current user ID
-    const { userId } = await getCurrentUser();
+    const { fetchAuthSession } = authModule;
     
     // Get authentication session
     const session = await fetchAuthSession();
@@ -179,24 +78,37 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[]): Pro
       Authorization: `Bearer ${token}`
     };
     
+    // Determine path based on whether this is an admin request or not
+    const path = admin
+      ? `/admin/users/${userId}/team-selections`  // Admin updating another user
+      : `/users/${userId}/team-selections`;       // User updating own data
+    
+    console.log(`Updating team selections at ${path}`);
+    
     // Make API request
     const putPromise = put({
       apiName: 'VatsApi',
-      path: `/users/${userId}/team-selections`,
+      path,
       options: {
-        headers: headers,
-        body: JSON.stringify({
-          teamSelections,
-        })
+        headers,
+        body: JSON.stringify({ teamSelections })
       } as any
     });
     
-    // Get the response
-    const response = putPromise;
+    // Get and parse the response
+    const { body } = await putPromise.response;
+    const responseBody = await body.text();
     
-    return (response as any).body?.teamSelections;
+    try {
+      const parsedBody = JSON.parse(responseBody);
+      console.log('Update response:', parsedBody);
+      return parsedBody.teamSelections || [];
+    } catch (e) {
+      console.error('Error parsing response body:', e);
+      return [];
+    }
   } catch (error) {
-    console.error('Error updating team selections:', error);
+    console.error(`Error updating team selections${userId ? ` for user ${userId}` : ''}:`, error);
     throw error;
   }
 };
@@ -216,14 +128,22 @@ export const getAllUsers = async (): Promise<UserData[]> => {
     const authModule = await import('aws-amplify/auth');
     const { fetchAuthSession } = authModule;
     
-    // Get authentication session
+    // Get authentication session and check token payload
     const session = await fetchAuthSession();
+    const idToken = session.tokens?.idToken;
+    if (idToken?.payload) {
+      console.log('ID token payload for admin request:', idToken.payload);
+    }
+    
     const token = session.tokens?.idToken?.toString() || '';
+    console.log('Token for admin API call:', token.substring(0, 20) + '...');
     
     // Create request headers with token
     const headers = {
       Authorization: `Bearer ${token}`
     };
+    
+    console.log('Sending admin API request to /admin/users');
     
     // Get all users
     const getPromise = get({
@@ -234,11 +154,20 @@ export const getAllUsers = async (): Promise<UserData[]> => {
       }
     });
     
-    const { body } = await getPromise.response;
-    const responseBody = await body.text();
-    const parsedBody = JSON.parse(responseBody);
-    
-    return parsedBody.users || [];
+    try {
+      const { body, statusCode, headers: responseHeaders } = await getPromise.response;
+      console.log('Admin API response status:', statusCode);
+      console.log('Admin API response headers:', responseHeaders);
+      
+      const responseBody = await body.text();
+      console.log('Admin API raw response:', responseBody);
+      
+      const parsedBody = JSON.parse(responseBody);
+      return parsedBody.users || [];
+    } catch (responseError) {
+      console.error('Error processing API response:', responseError);
+      throw new Error(`API response error: ${responseError}`);
+    }
   } catch (error) {
     console.error('Error getting all users:', error);
     throw error;
@@ -247,38 +176,8 @@ export const getAllUsers = async (): Promise<UserData[]> => {
 
 // Get team selections for specific user (admin only)
 export const getUserTeamSelections = async (userId: string): Promise<TeamSelection[]> => {
-  try {
-    // Import auth functions
-    const authModule = await import('aws-amplify/auth');
-    const { fetchAuthSession } = authModule;
-    
-    // Get authentication session
-    const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString() || '';
-    
-    // Create request headers with token
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
-    
-    // Get team selections for specific user
-    const getPromise = get({
-      apiName: 'VatsApi',
-      path: `/admin/users/${userId}/team-selections`,
-      options: {
-        headers: headers
-      }
-    });
-    
-    const { body } = await getPromise.response;
-    const responseBody = await body.text();
-    const parsedBody = JSON.parse(responseBody);
-    
-    return parsedBody.teamSelections || [];
-  } catch (error) {
-    console.error(`Error getting team selections for user ${userId}:`, error);
-    throw error;
-  }
+  // Use the common getTeamSelections function with the userId parameter
+  return getTeamSelections(userId, true);
 };
 
 // Update team selections for specific user (admin only)
@@ -286,39 +185,6 @@ export const updateUserTeamSelections = async (
   userId: string,
   teamSelections: TeamSelection[]
 ): Promise<TeamSelection[]> => {
-  try {
-    // Import auth functions
-    const authModule = await import('aws-amplify/auth');
-    const { fetchAuthSession } = authModule;
-    
-    // Get authentication session
-    const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString() || '';
-    
-    // Create request headers with token
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
-    
-    // Update team selections for specific user
-    const putPromise = put({
-      apiName: 'VatsApi',
-      path: `/admin/users/${userId}/team-selections`,
-      options: {
-        headers: headers,
-        body: JSON.stringify({
-          teamSelections,
-        })
-      } as any
-    });
-    
-    const { body } = await putPromise.response;
-    const responseBody = await body.text();
-    const parsedBody = JSON.parse(responseBody);
-    
-    return parsedBody.teamSelections || [];
-  } catch (error) {
-    console.error(`Error updating team selections for user ${userId}:`, error);
-    throw error;
-  }
+  // Use the common updateTeamSelections function with the userId parameter
+  return updateTeamSelections(teamSelections, userId, true);
 };

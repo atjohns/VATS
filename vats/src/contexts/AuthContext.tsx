@@ -78,13 +78,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (idToken) {
           const payload = idToken.payload;
-          // Get Cognito groups from token if available
+          console.log('ID Token payload:', payload);
+          
+          // Method 1: Check for cognito:groups in token claims
           if (payload['cognito:groups']) {
             userGroups = payload['cognito:groups'] as string[];
-            // Check if user is in the admin group
-            isUserAdmin = userGroups.includes('admin');
+            // Check if user is in the admin group (note: group name is 'admins' not 'admin')
+            isUserAdmin = userGroups.includes('admins');
           }
         }
+        
+        console.log('User groups:', userGroups);
+        console.log('Is admin:', isUserAdmin);
         
         // Update isAdmin state
         setIsAdmin(isUserAdmin);

@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { getTeamSelections, updateTeamSelections, TeamSelection } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { fbsTeams, FBSTeam } from '../fbs-teams';
 
 const MAX_TEAMS = 8;
@@ -36,6 +37,7 @@ const TeamSelectionForm: React.FC = () => {
   // Initialize array with 8 null slots
   const initialTeams = Array(MAX_TEAMS).fill(null);
   
+  const { user } = useAuth();
   const [selectedTeams, setSelectedTeams] = useState<(TeamSelection | null)[]>(initialTeams);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -48,9 +50,9 @@ const TeamSelectionForm: React.FC = () => {
     const fetchTeamSelections = async () => {
       try {
         setLoading(true);
-        
+        console.log('User', user);
         // Get team selections from API
-        const selections = await getTeamSelections();
+        const selections = await getTeamSelections(user?.userId || '', false);
         
         // Ensure selections is always an array with valid team objects
         let teamSelectionsArray = [];
@@ -143,6 +145,7 @@ const TeamSelectionForm: React.FC = () => {
     
     // Cast the FBSTeam to TeamSelection since they have the same structure
     newTeams[index] = newValue as TeamSelection | null;
+    
     setSelectedTeams(newTeams);
   };
 
@@ -160,7 +163,7 @@ const TeamSelectionForm: React.FC = () => {
     
     try {
       setSaving(true);
-      await updateTeamSelections(teamsToSave);
+      await updateTeamSelections(teamsToSave, user?.userId || '', false);
       alert('Team selections saved successfully');
       setHasExistingSelections(true);
       setEditMode(false); // Switch back to view mode after save
@@ -260,40 +263,75 @@ const TeamSelectionForm: React.FC = () => {
       
       <form onSubmit={handleSubmit}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          {SLOT_LABELS.map((label, index) => (
-            <Box key={`slot-${index}`} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)' } }}>
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                {label}
-              </Typography>
-              <Autocomplete
-                id={`team-select-${index}`}
-                value={selectedTeams[index] as FBSTeam | null}
-                onChange={(_, newValue) => handleTeamChange(index, newValue)}
-                options={fbsTeams}
-                getOptionLabel={(option) => `${option.schoolName} ${option.teamName}`}
-                renderInput={(params) => (
-                  <TextField 
-                    {...params} 
-                    error={!!errors[index]}
-                  />
-                )}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                renderOption={(props, option) => (
-                  <li {...props}>
-                    <Box>
-                      <Typography variant="body2">
-                        <strong>{option.schoolName}</strong> {option.teamName} 
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.location} • {option.conference}
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-              />
-              {errors[index] && <FormHelperText error>{errors[index]}</FormHelperText>}
-            </Box>
-          ))}
+          {SLOT_LABELS.map((label, index) => {
+            // Define filtering rules based on the slot index/label
+            const getFilteredTeams = () => {
+              const p4Conferences = ["SEC", "ACC", "Big Ten", "Big 12"];
+              
+              // Ride or Die (index 0) and Wild Card (index 5) - allow any team
+              if (index === 0 || index === 5) {
+                return fbsTeams;
+              }
+              // SEC (index 1)
+              else if (index === 1) {
+                return fbsTeams.filter(team => team.conference === "SEC");
+              }
+              // ACC (index 2)
+              else if (index === 2) {
+                return fbsTeams.filter(team => team.conference === "ACC");
+              }
+              // Big Ten (index 3)
+              else if (index === 3) {
+                return fbsTeams.filter(team => team.conference === "Big Ten");
+              }
+              // Big 12 (index 4)
+              else if (index === 4) {
+                return fbsTeams.filter(team => team.conference === "Big 12");
+              }
+              // Non-P4 (index 6 and 7) - exclude P4 conferences
+              else if (index === 6 || index === 7) {
+                return fbsTeams.filter(team => !p4Conferences.includes(team.conference));
+              }
+              
+              // Default case (shouldn't reach here)
+              return fbsTeams;
+            };
+            
+            return (
+              <Box key={`slot-${index}`} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)' } }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
+                  {label}
+                </Typography>
+                <Autocomplete
+                  id={`team-select-${index}`}
+                  value={selectedTeams[index] as FBSTeam | null}
+                  onChange={(_, newValue) => handleTeamChange(index, newValue)}
+                  options={getFilteredTeams()}
+                  getOptionLabel={(option) => `${option.schoolName} ${option.teamName}`}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      error={!!errors[index]}
+                    />
+                  )}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>{option.schoolName}</strong> {option.teamName} 
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.location} • {option.conference}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                />
+                {errors[index] && <FormHelperText error>{errors[index]}</FormHelperText>}
+              </Box>
+            );
+          })}
         </Box>
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>

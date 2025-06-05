@@ -23,14 +23,6 @@ export class VatsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: VatsStackProps) {
     super(scope, id, props);
 
-
-    // Create DynamoDB tables for user profiles and team selections
-    const usersTable = new dynamodb.Table(this, 'UsersTable', {
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
     const teamSelectionsTable = new dynamodb.Table(this, 'TeamSelectionsTable', {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -237,19 +229,93 @@ export class VatsStack extends cdk.Stack {
           'dynamodb:UpdateItem',
         ],
         resources: [
-          usersTable.tableArn,
           teamSelectionsTable.tableArn,
         ],
       })
     );
 
-    // Attach roles to identity pool
-    new cognito.CfnIdentityPoolRoleAttachment(this, 'IdentityPoolRoleAttachment', {
+    // Create the 'admins' Cognito group
+    const adminsGroup = new cognito.CfnUserPoolGroup(this, 'AdminsGroup', {
+      userPoolId: userPool.userPoolId,
+      groupName: 'admins',
+      description: 'Admin users with extended privileges',
+      precedence: 0, // Lower number = higher precedence
+    });
+    
+    // Create a role for admin users with additional permissions
+    const adminRole = new iam.Role(this, 'AdminRole', {
+      assumedBy: new iam.FederatedPrincipal(
+        'cognito-identity.amazonaws.com',
+        {
+          StringEquals: { 'cognito-identity.amazonaws.com:aud': identityPool.ref },
+          'ForAnyValue:StringLike': { 'cognito-identity.amazonaws.com:amr': 'authenticated' },
+        },
+        'sts:AssumeRoleWithWebIdentity'
+      ),
+      description: 'Role for admins group members with extended permissions',
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess')
+      ]
+    });
+    
+    // Add admin-specific permissions
+    adminRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'dynamodb:GetItem',
+          'dynamodb:PutItem',
+          'dynamodb:UpdateItem',
+          'dynamodb:DeleteItem',
+          'dynamodb:Scan',
+          'dynamodb:Query',
+        ],
+        resources: [
+          teamSelectionsTable.tableArn,
+        ],
+      })
+    );
+    
+    // Add permissions for admin to use Cognito to list users
+    adminRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'cognito-idp:ListUsers',
+          'cognito-idp:AdminGetUser',
+          'cognito-idp:AdminListGroupsForUser'
+        ],
+        resources: [
+          userPool.userPoolArn
+        ],
+      })
+    );
+    
+    // Set up role mapping for the Cognito Identity Pool with specific mappings for admin roles
+    const cfnRoleAttachment = new cognito.CfnIdentityPoolRoleAttachment(this, 'IdentityPoolRoleAttachment', {
       identityPoolId: identityPool.ref,
       roles: {
         authenticated: authenticatedRole.roleArn,
         unauthenticated: unauthenticatedRole.roleArn,
       },
+      // Use rules-based mapping for assigning the admin role to users in the admins group
+      roleMappings: {
+        userPoolMapping: {
+          type: 'Rules',
+          ambiguousRoleResolution: 'AuthenticatedRole',
+          identityProvider: `cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}:${userPoolClient.userPoolClientId}`,
+          rulesConfiguration: {
+            rules: [
+              {
+                claim: 'cognito:groups',
+                matchType: 'Contains',
+                value: 'admins',
+                roleArn: adminRole.roleArn
+              }
+            ]
+          }
+        }
+      }
     });
 
     // Define a single Lambda function for all API operations
@@ -258,16 +324,31 @@ export class VatsStack extends cdk.Stack {
       handler: 'apiHandler.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
-        USERS_TABLE: usersTable.tableName,
         TEAM_SELECTIONS_TABLE: teamSelectionsTable.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+        REGION: this.region || 'us-east-1',
       },
       timeout: cdk.Duration.seconds(30), // Increase timeout for combined handler
       memorySize: 512, // Allocate more memory
     });
 
     // Grant all required permissions to the single Lambda function
-    usersTable.grantReadWriteData(apiLambda);
     teamSelectionsTable.grantReadWriteData(apiLambda);
+    
+    // Grant permissions to list Cognito users
+    apiLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'cognito-idp:ListUsers',
+          'cognito-idp:AdminGetUser',
+          'cognito-idp:AdminListGroupsForUser'
+        ],
+        resources: [
+          userPool.userPoolArn
+        ],
+      })
+    );
 
     // Create API Gateway with CORS support for CloudFront domains
     const api = new apigateway.RestApi(this, 'VatsApi', {
