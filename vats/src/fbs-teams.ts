@@ -523,7 +523,7 @@ export const fbsTeams: FBSTeam[] = [
     "teamName": "Fighting Irish",
     "schoolName": "University of Notre Dame",
     "location": "Notre Dame, IN",
-    "conference": "Independent"
+    "conference": "ACC"
   },
   {
     "id": "4270a9f1-b51f-4fd0-a464-5904ced8a8d3",

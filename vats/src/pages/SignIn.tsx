@@ -95,6 +95,25 @@ const SignIn: React.FC = () => {
         >
           {loading ? <CircularProgress size={24} /> : 'Sign in with Google'}
         </Button>
+
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={() => window.open("https://docs.google.com/document/d/1mb4BbbiSpCG0faw9xfS0WTnc7c6StA57wGuTWwpl4WI/edit?usp=sharing", "_blank", "noopener,noreferrer")}
+          disabled={loading}
+          sx={{ 
+            mt: 3, 
+            mb: 3,
+            py: 1.5,
+            fontSize: '1.1rem',
+            bgcolor: '#4285F4',
+            '&:hover': {
+              bgcolor: '#3367D6'
+            }
+          }}
+        >
+          Read the Rules
+        </Button>
       </Paper>
     </Box>
   );

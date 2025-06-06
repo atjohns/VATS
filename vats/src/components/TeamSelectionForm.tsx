@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Autocomplete, 
   TextField, 
@@ -18,45 +18,89 @@ import EditIcon from '@mui/icons-material/Edit';
 import { getTeamSelections, updateTeamSelections, TeamSelection } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { fbsTeams, FBSTeam } from '../fbs-teams';
+import { SportType, SPORTS, DEFAULT_SPORT, SLOT_LABELS as SPORT_SLOT_LABELS } from '../constants/sports';
 
-const MAX_TEAMS = 8;
-
-// Define slot labels
-const SLOT_LABELS = [
-  'Ride or Die Team',
-  'SEC',
-  'ACC',
-  'Big Ten',
-  'Big 12',
-  'Wild Card',
-  'Non-P4', 
-  'Non-P4'
-];
+// MAX_TEAMS is now dynamically set from sportConfig.maxTeams
 
 interface TeamSelectionFormProps {
-  sport?: 'football' | 'mensbball'; // The sport type this form handles
+  sport?: SportType; // The sport type this form handles
+  readOnly?: boolean; // If true, shows read-only view initially
+  initialTeams?: TeamSelection[]; // For admin/edit mode
+  userId?: string; // For admin mode
+  isAdmin?: boolean; // For admin mode
+  onSave?: (teams: TeamSelection[]) => void; // For custom save handling
 }
 
-const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football' }) => {
-  // Initialize array with 8 null slots
-  const initialTeams = Array(MAX_TEAMS).fill(null);
-  
+const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ 
+  sport = DEFAULT_SPORT,
+  readOnly = false,
+  initialTeams = [],
+  userId,
+  isAdmin = false,
+  onSave
+}) => {
+  // Get sport-specific configuration
+  const sportConfig = SPORTS[sport] || SPORTS[DEFAULT_SPORT];
+  const slotLabels = SPORT_SLOT_LABELS[sport] || SPORT_SLOT_LABELS[DEFAULT_SPORT];
+  const maxTeams = sportConfig.maxTeams;
+  // Initialize array with 8 null slots  
   const { user } = useAuth();
-  const [selectedTeams, setSelectedTeams] = useState<(TeamSelection | null)[]>(initialTeams);
+  const [selectedTeams, setSelectedTeams] = useState<(TeamSelection | null)[]>(Array(maxTeams).fill(null));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(!readOnly);
   const [hasExistingSelections, setHasExistingSelections] = useState(false);
-  const [errors, setErrors] = useState<string[]>(Array(MAX_TEAMS).fill(''));
+  const [errors, setErrors] = useState<string[]>(Array(maxTeams).fill(''));
 
-  // Data loading effect
+  // Use ref to track if API has been called already (won't trigger re-renders)
+  const hasLoadedFromApiRef = useRef(false);
+
+  // Initialize from initialTeams prop if available
   useEffect(() => {
+    if (initialTeams && initialTeams.length > 0 && initialTeams.some(team => team !== null)) {
+      console.log('Initializing from initialTeams prop');
+      
+      // Filter by sport if needed
+      const sportFiltered = initialTeams.filter(
+        (team: TeamSelection) => !team.sport || team.sport === sport
+      );
+      
+      // Create an array of maxTeams length with the valid teams or null
+      const teamsArray = Array(maxTeams).fill(null);
+      sportFiltered.forEach((team, index) => {
+        if (index < maxTeams) {
+          teamsArray[index] = team;
+        }
+      });
+      
+      setSelectedTeams(teamsArray);
+      setHasExistingSelections(sportFiltered.length > 0);
+    }
+  }, [initialTeams, sport, maxTeams]);
+  
+  // API data fetching effect - runs once on component mount
+  useEffect(() => {
+    // Skip API call if we already loaded data once
+    if (hasLoadedFromApiRef.current) {
+      console.log('Skipping API call - data already loaded');
+      return;
+    }
+    
+    // Admin mode should never make API calls
+    if (isAdmin) {
+      console.log('Admin mode - skipping API call');
+      return;
+    }
+    
     const fetchTeamSelections = async () => {
       try {
         setLoading(true);
+        
+        // We already handle initialTeams in a separate useEffect
+        
         console.log('User', user);
         // Get team selections from API
-        const selections = await getTeamSelections(user?.userId || '', false);
+        const selections = await getTeamSelections(userId || user?.userId || '', isAdmin);
         
         // Filter selections based on sport if needed
         const sportFiltered = selections.filter(
@@ -91,10 +135,10 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
           return isValid;
         });
                 
-        // Create an array of MAX_TEAMS length with the valid teams or null
-        const teamsArray = Array(MAX_TEAMS).fill(null);
+        // Create an array of maxTeams length with the valid teams or null
+        const teamsArray = Array(maxTeams).fill(null);
         validTeams.forEach((team, index) => {
-          if (index < MAX_TEAMS) {
+          if (index < maxTeams) {
             teamsArray[index] = team;
           }
         });
@@ -103,7 +147,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
         setSelectedTeams(teamsArray);
         
         // Check if user has full team selections already
-        const hasFullRoster = validTeams.length === MAX_TEAMS && 
+        const hasFullRoster = validTeams.length === maxTeams && 
                              validTeams.every(team => team !== null);
         
         setHasExistingSelections(hasFullRoster);
@@ -116,11 +160,14 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
         setEditMode(true); // If error, default to edit mode
       } finally {
         setLoading(false);
+        // Mark that we've successfully loaded data
+        hasLoadedFromApiRef.current = true;
       }
     };
 
+    console.log('Starting team selections fetch');
     fetchTeamSelections();
-  }, []);
+  }, [initialTeams, userId, user?.userId, sport, isAdmin]);
 
   // Effect to handle empty teams in read-only mode
   useEffect(() => {   
@@ -178,8 +225,16 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
     
     try {
       setSaving(true);
-      await updateTeamSelections(teamsToSave, user?.userId || '', false);
-      alert('Team selections saved successfully');
+      
+      // If a custom onSave handler is provided, use it instead
+      if (onSave) {
+        onSave(teamsToSave);
+      } else {
+        // Otherwise use the default API call
+        await updateTeamSelections(teamsToSave, userId || user?.userId || '', isAdmin);
+        alert('Team selections saved successfully');
+      }
+      
       setHasExistingSelections(true);
       setEditMode(false); // Switch back to view mode after save
     } catch (error) {
@@ -228,7 +283,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
                         sx={{ p: 2, width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33% - 16px)' } }}
                       >
                         <Typography variant="subtitle2" color="primary" gutterBottom>
-                          {SLOT_LABELS[index]}
+                          {slotLabels[index]}
                         </Typography>
                         <Typography variant="body1">
                           {schoolName} {teamName}
@@ -270,15 +325,15 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
   return (
     <Box sx={{ maxWidth: 800, margin: '0 auto' }}>
       <Typography variant="h5" gutterBottom>
-        {hasExistingSelections ? 'Edit Your College Football Roster' : 'Select College Football Roster'}
+        {hasExistingSelections ? `Edit Your ${sportConfig.displayName} Roster` : `Select ${sportConfig.displayName} Roster`}
       </Typography>
       <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-        Choose a college football team for each of the {MAX_TEAMS} slots
+        Choose a {sportConfig.displayName.toLowerCase()} team for each of the {maxTeams} slots
       </Typography>
       
       <form onSubmit={handleSubmit}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          {SLOT_LABELS.map((label, index) => {
+          {slotLabels.map((label, index) => {
             // Define filtering rules based on the slot index/label
             const getFilteredTeams = () => {
               const p4Conferences = ["SEC", "ACC", "Big Ten", "Big 12"];
@@ -351,7 +406,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
           <Typography variant="body2" color="text.secondary">
-            {selectedTeams.filter(team => team !== null).length} of {MAX_TEAMS} slots filled
+            {selectedTeams.filter(team => team !== null).length} of {maxTeams} slots filled
           </Typography>
           <Stack direction="row" spacing={2}>
             {hasExistingSelections && (

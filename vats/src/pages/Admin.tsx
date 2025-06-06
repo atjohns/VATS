@@ -6,37 +6,25 @@ import {
   Paper,
   Button,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   AppBar,
   Toolbar,
   TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
   Divider,
   Alert,
-  IconButton,
-  InputAdornment
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import vatsLogo from '../assets/vats.png';
 import { getUserTeamSelections, updateUserTeamSelections, getAllUsers } from '../services/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
 import SearchIcon from '@mui/icons-material/Search';
+import { MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
+import TeamSelectionForm from '../components/TeamSelectionForm';
+import { SportType, SPORTS, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
 
 interface User {
   userId: string;
@@ -52,6 +40,7 @@ interface TeamSelection {
   location: string;
   conference: string;
   selectionType?: string; // For categorizing (ride_or_die, sec, acc, etc.)
+  sport?: string; // Added for multi-sport support: 'football', 'mensbball', etc.
 }
 
 const Admin: React.FC = () => {
@@ -61,10 +50,10 @@ const Admin: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingTeam, setEditingTeam] = useState<TeamSelection | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [selectedSport, setSelectedSport] = useState<SportType>(DEFAULT_SPORT);
+  const [showTeamForm, setShowTeamForm] = useState(false);
   const { signOut, isAdmin } = useAuth(); // Remove unused 'user' variable
   const navigate = useNavigate();
 
@@ -96,6 +85,9 @@ const Admin: React.FC = () => {
           const selections = await getUserTeamSelections(selectedUser.userId);
           setTeamSelections(selections);
           setError(null);
+          
+          // Reset team form display
+          setShowTeamForm(false);
         } catch (err) {
           console.error(`Failed to fetch team selections for user ${selectedUser.userId}:`, err);
           setError('Failed to load team selections. Please try again later.');
@@ -113,52 +105,35 @@ const Admin: React.FC = () => {
     setSelectedUser(user);
   };
 
-  const handleEditTeam = (team: TeamSelection) => {
-    setEditingTeam({...team});
-    setEditDialogOpen(true);
+  
+  const handleSportChange = (event: SelectChangeEvent) => {
+    setSelectedSport(event.target.value as SportType);
   };
-
-  const handleSaveTeam = async () => {
-    if (!editingTeam || !selectedUser) return;
+  
+  const handleTeamFormSave = (teams: TeamSelection[]) => {
+    // Add sport field to each team if not present
+    const teamsWithSport = teams.map(team => ({
+      ...team,
+      sport: team.sport || selectedSport
+    }));
     
-    try {
-      // Update the team in the local state
-      const updatedSelections = teamSelections.map(team => 
-        team.id === editingTeam.id ? editingTeam : team
-      );
-      
-      // Save to the backend
-      await updateUserTeamSelections(selectedUser.userId, updatedSelections);
-      
-      // Update local state
-      setTeamSelections(updatedSelections);
-      setEditDialogOpen(false);
-      setSaveSuccess(true);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSaveSuccess(false);
-      }, 3000);
-    } catch (err) {
-      console.error('Failed to save team:', err);
-      setError('Failed to save changes. Please try again.');
-    }
+    updateUserTeamSelections(selectedUser!.userId, teamsWithSport)
+      .then(() => {
+        setSaveSuccess(true);
+        setTeamSelections(teamsWithSport);
+        setShowTeamForm(false);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSaveSuccess(false);
+        }, 3000);
+      })
+      .catch(error => {
+        console.error('Failed to save team selections:', error);
+        setError('Failed to save changes. Please try again.');
+      });
   };
 
-  const handleCloseEditDialog = () => {
-    setEditDialogOpen(false);
-    setEditingTeam(null);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!editingTeam) return;
-    
-    const { name, value } = e.target;
-    setEditingTeam({
-      ...editingTeam,
-      [name]: value
-    });
-  };
 
   const handleSignOut = async () => {
     try {
@@ -239,20 +214,25 @@ const Admin: React.FC = () => {
           <Paper sx={{ width: 300, p: 2, maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
             <Typography variant="h6" gutterBottom>Users</Typography>
             <Box sx={{ display: 'flex', mb: 2 }}>
-              <TextField
-                fullWidth
-                placeholder="Search users..."
-                size="small"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
+              <Box sx={{ position: 'relative', width: '100%' }}>
+                <TextField
+                  fullWidth
+                  placeholder="Search users..."
+                  size="small"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}
+                >
+                  <SearchIcon fontSize="small" color="action" />
+                </Box>
+              </Box>
             </Box>
             
             {loading ? (
@@ -289,53 +269,44 @@ const Admin: React.FC = () => {
           <Paper sx={{ flexGrow: 1, p: 2, maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
             {selectedUser ? (
               <>
-                <Typography variant="h6" gutterBottom>
-                  Team Selections for {selectedUser.name || selectedUser.username}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    Team Selections for {selectedUser.name || selectedUser.username}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel id="sport-select-label">Sport</InputLabel>
+                      <Select
+                        labelId="sport-select-label"
+                        value={selectedSport}
+                        label="Sport"
+                        onChange={handleSportChange}
+                      >
+                        {ALL_SPORTS.map(sport => (
+                          <MenuItem key={sport.id} value={sport.id}>
+                            {sport.displayName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Box>
                 
                 {loadingTeams ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                     <CircularProgress />
                   </Box>
-                ) : teamSelections.length > 0 ? (
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>School</TableCell>
-                          <TableCell>Team Name</TableCell>
-                          <TableCell>Conference</TableCell>
-                          <TableCell>Location</TableCell>
-                          <TableCell>Selection Type</TableCell>
-                          <TableCell>Actions</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {teamSelections.map((team) => (
-                          <TableRow key={team.id}>
-                            <TableCell>{team.schoolName}</TableCell>
-                            <TableCell>{team.teamName}</TableCell>
-                            <TableCell>{team.conference}</TableCell>
-                            <TableCell>{team.location}</TableCell>
-                            <TableCell>{team.selectionType || 'N/A'}</TableCell>
-                            <TableCell>
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() => handleEditTeam(team)}
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
                 ) : (
-                  <Typography variant="body1" sx={{ textAlign: 'center', mt: 4 }}>
-                    No team selections found for this user.
-                  </Typography>
+                  // Always show the team selection form in view/edit mode
+                  <TeamSelectionForm 
+                    sport={selectedSport}
+                    initialTeams={teamSelections.filter(team => !team.sport || team.sport === selectedSport)}
+                    userId={selectedUser.userId}
+                    isAdmin={true}
+                    readOnly={!showTeamForm}
+                    onSave={handleTeamFormSave}
+                  />
                 )}
               </>
             ) : (
@@ -347,79 +318,6 @@ const Admin: React.FC = () => {
         </Box>
       </Container>
       
-      {/* Edit Team Dialog */}
-      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Team</DialogTitle>
-        <DialogContent>
-          <Box component="form" sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="schoolName"
-              label="School Name"
-              name="schoolName"
-              value={editingTeam?.schoolName || ''}
-              onChange={handleInputChange}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="teamName"
-              label="Team Name"
-              name="teamName"
-              value={editingTeam?.teamName || ''}
-              onChange={handleInputChange}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="conference"
-              label="Conference"
-              name="conference"
-              value={editingTeam?.conference || ''}
-              onChange={handleInputChange}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="location"
-              label="Location"
-              name="location"
-              value={editingTeam?.location || ''}
-              onChange={handleInputChange}
-            />
-            <TextField
-              margin="normal"
-              fullWidth
-              id="selectionType"
-              label="Selection Type"
-              name="selectionType"
-              value={editingTeam?.selectionType || ''}
-              onChange={handleInputChange}
-              helperText="e.g. ride_or_die, sec, acc, big10, big12, non_p4, wild_card"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={handleCloseEditDialog} 
-            startIcon={<CancelIcon />}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSaveTeam} 
-            color="primary"
-            startIcon={<SaveIcon />}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

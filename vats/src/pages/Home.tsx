@@ -15,6 +15,7 @@ import TeamSelectionForm from '../components/TeamSelectionForm';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import vatsLogo from '../assets/vats.png';
+import { SportType, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -132,14 +133,18 @@ const Home: React.FC = () => {
           aria-label="basic tabs example"
           centered
         >
-          <Tab label="College Football" />
+          {ALL_SPORTS.map((sport, index) => (
+            <Tab key={sport.id} label={sport.displayName} />
+          ))}
         </Tabs>
       </Box>
 
       <Container maxWidth="md" sx={{ mt: 4 }}>
-        <TabPanel value={tabValue} index={0}>
-          <TeamSelectionForm />
-        </TabPanel>
+        {ALL_SPORTS.map((sport, index) => (
+          <TabPanel key={sport.id} value={tabValue} index={index}>
+            <TeamSelectionForm sport={sport.id} />
+          </TabPanel>
+        ))}
       </Container>
     </Box>
   );
