@@ -33,7 +33,11 @@ const SLOT_LABELS = [
   'Non-P4'
 ];
 
-const TeamSelectionForm: React.FC = () => {
+interface TeamSelectionFormProps {
+  sport?: 'football' | 'mensbball'; // The sport type this form handles
+}
+
+const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ sport = 'football' }) => {
   // Initialize array with 8 null slots
   const initialTeams = Array(MAX_TEAMS).fill(null);
   
@@ -54,16 +58,23 @@ const TeamSelectionForm: React.FC = () => {
         // Get team selections from API
         const selections = await getTeamSelections(user?.userId || '', false);
         
+        // Filter selections based on sport if needed
+        const sportFiltered = selections.filter(
+          (team: TeamSelection) => !team.sport || team.sport === sport
+        );
+        
         // Ensure selections is always an array with valid team objects
         let teamSelectionsArray = [];
         
         if (Array.isArray(selections)) {
-          teamSelectionsArray = selections;
+          teamSelectionsArray = sportFiltered; // Use the filtered selections based on sport
         } else if (selections && typeof selections === 'object') {
           // Try to extract teamSelections property if it exists
           const extractedSelections = (selections as any).teamSelections;
           if (Array.isArray(extractedSelections)) {
-            teamSelectionsArray = extractedSelections;
+            teamSelectionsArray = extractedSelections.filter(
+              (team: TeamSelection) => !team.sport || team.sport === sport
+            );
           } else {
             console.warn('Could not extract teamSelections array from object:', selections);
           }
@@ -144,7 +155,11 @@ const TeamSelectionForm: React.FC = () => {
     }
     
     // Cast the FBSTeam to TeamSelection since they have the same structure
-    newTeams[index] = newValue as TeamSelection | null;
+    // Add the sport property
+    newTeams[index] = newValue ? {
+      ...newValue as TeamSelection,
+      sport: sport
+    } : null;
     
     setSelectedTeams(newTeams);
   };

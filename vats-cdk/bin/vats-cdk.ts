@@ -7,6 +7,8 @@ const app = new cdk.App();
 new VatsStack(app, 'VatsStack', {
   env: { 
     account: process.env.CDK_DEFAULT_ACCOUNT, 
-    region: process.env.CDK_DEFAULT_REGION 
+    region: process.env.CDK_DEFAULT_REGION,
+    googleAuthClientId: "",
+    googleAuthClientSecret: "",
   },
 });

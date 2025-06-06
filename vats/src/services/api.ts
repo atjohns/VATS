@@ -8,6 +8,7 @@ export interface TeamSelection {
   location: string;
   conference: string;
   selectionType?: string; // Added for admin functionality
+  sport?: string; // Added for multi-sport support: 'football', 'mensbball', etc.
 }
 
 /**
@@ -49,7 +50,8 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
     try {
       const parsedBody = JSON.parse(responseBody);
       console.log('Team selections response:', parsedBody);
-      return parsedBody.teamSelections || [];
+      // Return sport-specific selections if available, fall back to legacy format if needed
+      return parsedBody.footballSelections || parsedBody.teamSelections || [];
     } catch (e) {
       console.error('Error parsing response body:', e);
       return [];
@@ -64,6 +66,8 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
  * Common function to update team selections for a user (either self or as admin)
  */
 export const updateTeamSelections = async (teamSelections: TeamSelection[], userId: string, admin: boolean): Promise<TeamSelection[]> => {
+  // Set the sport to football by default for backward compatibility
+  const sport = teamSelections[0]?.sport || 'football';
   try {
     // Import auth functions
     const authModule = await import('aws-amplify/auth');
@@ -91,7 +95,10 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[], user
       path,
       options: {
         headers,
-        body: JSON.stringify({ teamSelections })
+        // Use the appropriate property based on sport
+        body: JSON.stringify(sport === 'football' 
+          ? { footballSelections: teamSelections } 
+          : { mensbballSelections: teamSelections })
       } as any
     });
     
@@ -102,7 +109,8 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[], user
     try {
       const parsedBody = JSON.parse(responseBody);
       console.log('Update response:', parsedBody);
-      return parsedBody.teamSelections || [];
+      // Return sport-specific selections if available, fall back to legacy format if needed
+      return (sport === 'football' ? parsedBody.footballSelections : parsedBody.mensbballSelections) || parsedBody.teamSelections || [];
     } catch (e) {
       console.error('Error parsing response body:', e);
       return [];
