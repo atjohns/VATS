@@ -24,7 +24,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
 import TeamSelectionForm from '../components/TeamSelectionForm';
+import TeamScores from '../components/TeamScores';
 import { SportType, SPORTS, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
+import { Tabs, Tab } from '@mui/material';
 
 interface User {
   userId: string;
@@ -48,6 +50,7 @@ const Admin: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [teamSelections, setTeamSelections] = useState<TeamSelection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(0);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -209,9 +212,22 @@ const Admin: React.FC = () => {
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {saveSuccess && <Alert severity="success" sx={{ mb: 2 }}>Changes saved successfully!</Alert>}
         
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          {/* User Selection Panel */}
-          <Paper sx={{ width: 300, p: 2, maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
+        <Box sx={{ mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(_, newValue) => setActiveTab(newValue)}
+            aria-label="admin tabs"
+          >
+            <Tab label="User Selections" />
+            <Tab label="Team Scores" />
+          </Tabs>
+        </Box>
+        
+        {/* Tab 0: User Selections */}
+        {activeTab === 0 && (
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {/* User Selection Panel */}
+            <Paper sx={{ width: 300, p: 2, maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
             <Typography variant="h6" gutterBottom>Users</Typography>
             <Box sx={{ display: 'flex', mb: 2 }}>
               <Box sx={{ position: 'relative', width: '100%' }}>
@@ -316,6 +332,12 @@ const Admin: React.FC = () => {
             )}
           </Paper>
         </Box>
+        )}
+        
+        {/* Tab 1: Team Scores */}
+        {activeTab === 1 && (
+          <TeamScores isAdmin={isAdmin} />
+        )}
       </Container>
       
     </Box>

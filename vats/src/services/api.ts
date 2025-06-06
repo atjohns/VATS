@@ -9,6 +9,8 @@ export interface TeamSelection {
   conference: string;
   selectionType?: string; // Added for admin functionality
   sport?: string; // Added for multi-sport support: 'football', 'mensbball', etc.
+  regularSeasonPoints?: number; // Points earned during regular season
+  postseasonPoints?: number; // Points earned during postseason
 }
 
 /**
@@ -195,4 +197,77 @@ export const updateUserTeamSelections = async (
 ): Promise<TeamSelection[]> => {
   // Use the common updateTeamSelections function with the userId parameter
   return updateTeamSelections(teamSelections, userId, true);
+};
+
+/**
+ * Get all team selections across all users (admin only)
+ * This is used to show which teams have been selected by any user
+ */
+export const getAllTeamSelections = async (sport: string = 'football'): Promise<TeamSelection[]> => {
+  try {
+    // Import auth functions
+    const authModule = await import('aws-amplify/auth');
+    const { fetchAuthSession } = authModule;
+    
+    // Get authentication session
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString() || '';
+    
+    // Create request headers with token
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    
+    // API endpoint for getting all team selections across users
+    const path = `/admin/all-team-selections?sport=${sport}`;
+    
+    console.log(`Getting all team selections from ${path}`);
+    
+    // Make API request
+    const getPromise = get({
+      apiName: 'VatsApi',
+      path,
+      options: { headers }
+    });
+    
+    // Get and parse the response
+    const { body } = await getPromise.response;
+    const responseBody = await body.text();
+    
+    try {
+      const parsedBody = JSON.parse(responseBody);
+      console.log('All team selections response:', parsedBody);
+      return parsedBody.teamSelections || [];
+    } catch (e) {
+      console.error('Error parsing response body:', e);
+      return [];
+    }
+  } catch (error) {
+    console.error(`Error getting all team selections:`, error);
+    
+    // If the API endpoint doesn't exist yet, we'll need to get all users and their selections
+    // This is a fallback implementation that should work even without a dedicated endpoint
+    try {
+      console.log('Trying fallback implementation to get all team selections');
+      const users = await getAllUsers();
+      
+      // Get team selections for each user
+      const allSelectionsPromises = users.map(user => getUserTeamSelections(user.userId));
+      const allSelectionsArrays = await Promise.all(allSelectionsPromises);
+      
+      // Flatten and deduplicate by team ID
+      const teamMap = new Map();
+      allSelectionsArrays.forEach(selections => {
+        selections.filter(s => !s.sport || s.sport === sport).forEach(team => {
+          // Use schoolName as the unique identifier
+          teamMap.set(team.schoolName, team);
+        });
+      });
+      
+      return Array.from(teamMap.values());
+    } catch (fallbackError) {
+      console.error('Fallback implementation failed:', fallbackError);
+      throw error; // Throw the original error
+    }
+  }
 };

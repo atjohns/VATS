@@ -23,8 +23,17 @@ export class VatsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: VatsStackProps) {
     super(scope, id, props);
 
+    // Team selections table for user selections
     const teamSelectionsTable = new dynamodb.Table(this, 'TeamSelectionsTable', {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    
+    // Team scores table for tracking points
+    const teamScoresTable = new dynamodb.Table(this, 'TeamScoresTable', {
+      partitionKey: { name: 'teamId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'sport', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -325,6 +334,7 @@ export class VatsStack extends cdk.Stack {
       code: lambda.Code.fromAsset('lambda'),
       environment: {
         TEAM_SELECTIONS_TABLE: teamSelectionsTable.tableName,
+        TEAM_SCORES_TABLE: teamScoresTable.tableName,
         USER_POOL_ID: userPool.userPoolId,
         REGION: this.region || 'us-east-1',
       },
@@ -334,6 +344,7 @@ export class VatsStack extends cdk.Stack {
 
     // Grant all required permissions to the single Lambda function
     teamSelectionsTable.grantReadWriteData(apiLambda);
+    teamScoresTable.grantReadWriteData(apiLambda);
     
     // Grant permissions to list Cognito users
     apiLambda.addToRolePolicy(
@@ -447,6 +458,39 @@ export class VatsStack extends cdk.Stack {
     // Add admin endpoints
     const admin = api.root.addResource('admin');
     const adminUsers = admin.addResource('users');
+    
+    // Add team scores endpoints for admin
+    const adminTeamScores = admin.addResource('team-scores');
+    
+    // Add endpoint for getting all team selections across users
+    const adminAllTeamSelections = admin.addResource('all-team-selections');
+    adminAllTeamSelections.addMethod('GET', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
+    
+    // Get all team scores and update team scores
+    adminTeamScores.addMethod('GET', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
+    
+    adminTeamScores.addMethod('PUT', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
+    
+    // Add resource for specific team score operations
+    const adminTeamScore = adminTeamScores.addResource('{teamId}');
+    
+    adminTeamScore.addMethod('GET', apiIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: standardMethodResponses
+    });
     
     // Add GET method for listing all users (admin only)
     adminUsers.addMethod('GET', apiIntegration, {

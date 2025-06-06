@@ -1,7 +1,8 @@
 const { 
   GetCommand, 
   PutCommand, 
-  UpdateCommand 
+  UpdateCommand,
+  ScanCommand
 } = require('@aws-sdk/lib-dynamodb');
 const { fbsTeamsMap } = require('./fbsTeamsData');
 const { dynamodb, createCorsResponse } = require('./utils');
@@ -37,7 +38,9 @@ async function getTeamSelections(userId) {
       teamName: teamDetails.teamName || "Unknown",
       location: teamDetails.location || "Unknown",
       conference: teamDetails.conference || "Unknown",
-      sport: team.sport || "football" // Default to football for backward compatibility
+      sport: team.sport || "football", // Default to football for backward compatibility
+      regularSeasonPoints: team.regularSeasonPoints || 0,
+      postseasonPoints: team.postseasonPoints || 0
     };
   });
   
@@ -75,11 +78,13 @@ async function updateTeamSelections(event, userId) {
     return createCorsResponse(400, { message: 'Must select exactly 8 teams' });
   }
   
-  // Extract the minimal data needed (id, schoolName, and sport)
+  // Extract the minimal data needed (id, schoolName, sport, and score points)
   const minimalTeamData = teamSelections.map(team => ({
     id: team.id,
     schoolName: team.schoolName,
-    sport: team.sport || sport // Use provided sport or default
+    sport: team.sport || sport, // Use provided sport or default
+    regularSeasonPoints: team.regularSeasonPoints || 0,
+    postseasonPoints: team.postseasonPoints || 0
   }));
   
   // First check if the user already exists in the table
@@ -154,7 +159,9 @@ async function updateTeamSelections(event, userId) {
         teamName: teamDetails.teamName || "Unknown",
         location: teamDetails.location || "Unknown",
         conference: teamDetails.conference || "Unknown",
-        sport: team.sport || "football" // Default to football for backward compatibility
+        sport: team.sport || "football", // Default to football for backward compatibility
+        regularSeasonPoints: team.regularSeasonPoints || 0,
+        postseasonPoints: team.postseasonPoints || 0
       };
     });
     
@@ -173,7 +180,56 @@ async function updateTeamSelections(event, userId) {
   return createCorsResponse(200, result);
 }
 
+/**
+ * Get all team selections across users (for admin view)
+ */
+async function getAllTeamSelections(sport) {
+  // Create params for the scan operation
+  const params = {
+    TableName: process.env.TEAM_SELECTIONS_TABLE,
+    ProjectionExpression: "userId, teamSelections"
+  };
+  
+  // Use a scan operation to get all user selections
+  const command = new ScanCommand(params);
+  const result = await dynamodb.send(command);
+  
+  // Process results to extract all unique team selections
+  const teamMap = new Map();
+  
+  result.Items.forEach(item => {
+    const teamSelections = item.teamSelections;
+    if (teamSelections && Array.isArray(teamSelections)) {
+      teamSelections.forEach(team => {
+        // Filter by sport and use schoolName as unique identifier
+        if (team.schoolName && (!team.sport || team.sport === sport)) {
+          // Add team details from our static map
+          const teamDetails = fbsTeamsMap[team.schoolName] || {};
+          const enhancedTeam = {
+            id: team.id,
+            teamId: team.id, // For consistency with TeamScore interface
+            schoolName: team.schoolName,
+            teamName: teamDetails.teamName || team.teamName || "Unknown",
+            location: teamDetails.location || "Unknown",
+            conference: teamDetails.conference || "Unknown",
+            sport: team.sport || sport || "football"
+          };
+          teamMap.set(team.schoolName, enhancedTeam);
+        }
+      });
+    }
+  });
+  
+  // Convert map values to array
+  const uniqueTeams = Array.from(teamMap.values());
+  
+  return createCorsResponse(200, { 
+    teamSelections: uniqueTeams
+  });
+}
+
 module.exports = {
   getTeamSelections,
-  updateTeamSelections
+  updateTeamSelections,
+  getAllTeamSelections
 };

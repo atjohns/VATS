@@ -1,6 +1,7 @@
 // Import handler modules
 const { getUserProfile, updateUserProfile, getAllUsers } = require('./userProfile');
 const { getTeamSelections, updateTeamSelections } = require('./teamSelections');
+const { getTeamScores, getTeamScore, updateTeamScores } = require('./teamScores');
 const { createCorsResponse, authorizeUser } = require('./utils');
 
 /**
@@ -122,6 +123,28 @@ async function handleAdminRequest(event, path, method) {
     }
     
     return await updateTeamSelections(event, targetUserId);
+  } else if (path === '/admin/team-scores' && method === 'GET') {
+    // Get all team scores
+    console.log('Admin getting all team scores');
+    const sport = event.queryStringParameters?.sport;
+    return await getTeamScores(sport);
+  } else if (path === '/admin/all-team-selections' && method === 'GET') {
+    // Get all team selections across users (for admin view)
+    console.log('Admin getting all team selections across users');
+    const sport = event.queryStringParameters?.sport || 'football';
+    return await getAllTeamSelections(sport);
+  } else if (path === '/admin/team-scores' && method === 'PUT') {
+    // Update team scores
+    console.log('Admin updating team scores');
+    return await updateTeamScores(event);
+  } else if (path.match(/^\/admin\/team-scores\/[^/]+$/) && method === 'GET') {
+    // Get specific team score
+    const pathParts = path.split('/');
+    const teamId = pathParts[3]; // /admin/team-scores/{teamId}
+    const sport = event.queryStringParameters?.sport || 'football';
+    
+    console.log('Admin getting team score for team:', teamId);
+    return await getTeamScore(teamId, sport);
   } else {
     return createCorsResponse(404, {
       message: `Not Found: ${method} ${path}`

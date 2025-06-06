@@ -2,10 +2,10 @@
 // This is populated from the same source as the client-side data
 
 exports.fbsTeamsMap = {
-  "Air Force Academy": { teamName: "Falcons", location: "Colorado Springs, CO", conference: "Mountain West" },
-  "University of Akron": { teamName: "Zips", location: "Akron, OH", conference: "MAC" },
-  "University of Alabama": { teamName: "Crimson Tide", location: "Tuscaloosa, AL", conference: "SEC" },
-  "University of Alabama at Birmingham": { teamName: "Blazers", location: "Birmingham, AL", conference: "AAC" },
+  "Air Force Academy": { schoolName: "Air Force Academy", teamName: "Falcons", location: "Colorado Springs, CO", conference: "Mountain West" },
+  "University of Akron": { schoolName: "University of Akron", teamName: "Zips", location: "Akron, OH", conference: "MAC" },
+  "University of Alabama": { schoolName: "University of Alabama", teamName: "Crimson Tide", location: "Tuscaloosa, AL", conference: "SEC" },
+  "University of Alabama at Birmingham": { schoolName: "University of Alabama at Birmingham", teamName: "Blazers", location: "Birmingham, AL", conference: "AAC" },
   "University of New Mexico": { teamName: "Lobos", location: "Albuquerque, NM", conference: "Mountain West" },
   "Arizona State University": { teamName: "Sun Devils", location: "Tempe, AZ", conference: "Big 12" },
   "University of Arizona": { teamName: "Wildcats", location: "Tucson, AZ", conference: "Big 12" },
