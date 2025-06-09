@@ -1,7 +1,8 @@
 // Import handler modules
 const { getUserProfile, updateUserProfile, getAllUsers } = require('./userProfile');
-const { getTeamSelections, updateTeamSelections } = require('./teamSelections');
+const { getTeamSelections, updateTeamSelections, getAllTeamSelections } = require('./teamSelections');
 const { getTeamScores, getTeamScore, updateTeamScores } = require('./teamScores');
+const { getLeaderboard } = require('./leaderboard');
 const { createCorsResponse, authorizeUser } = require('./utils');
 
 /**
@@ -20,6 +21,12 @@ exports.handler = async (event) => {
   const method = event.httpMethod;
 
   try {
+    // Special public endpoints that don't require specific authorization
+    if (path === '/leaderboard') {
+      const sport = event.queryStringParameters?.sport || 'football';
+      return await getLeaderboard(sport);
+    }
+    
     // Check if this is an admin API endpoint
     if (path.startsWith('/admin/')) {
       return await handleAdminRequest(event, path, method);

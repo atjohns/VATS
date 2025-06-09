@@ -291,16 +291,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                         <Typography variant="body2" color="text.secondary">
                           {location} • {conference}
                         </Typography>
-                        {isAdmin && (
-                          <Box sx={{ mt: 1, pt: 1, borderTop: '1px dashed #ddd' }}>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                              Regular Season: {team.regularSeasonPoints || 0} pts
-                            </Typography>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                              Postseason: {team.postseasonPoints || 0} pts
-                            </Typography>
-                          </Box>
-                        )}
+                        {/* Remove points display */}
                       </Paper>
                     );
                   })}
@@ -410,47 +401,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                 />
                 {errors[index] && <FormHelperText error>{errors[index]}</FormHelperText>}
                 
-                {/* Admin-only score fields */}
-                {isAdmin && selectedTeams[index] && (
-                  <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
-                    <TextField
-                      label="Regular Season"
-                      type="number"
-                      size="small"
-                      InputProps={{ endAdornment: <Box component="span" sx={{ opacity: 0.7 }}>pts</Box> }}
-                      value={selectedTeams[index]?.regularSeasonPoints || 0}
-                      onChange={(e) => {
-                        const newTeams = [...selectedTeams];
-                        if (newTeams[index]) {
-                          newTeams[index] = {
-                            ...newTeams[index]!,
-                            regularSeasonPoints: Number(e.target.value) || 0
-                          };
-                          setSelectedTeams(newTeams);
-                        }
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      label="Postseason"
-                      type="number"
-                      size="small"
-                      InputProps={{ endAdornment: <Box component="span" sx={{ opacity: 0.7 }}>pts</Box> }}
-                      value={selectedTeams[index]?.postseasonPoints || 0}
-                      onChange={(e) => {
-                        const newTeams = [...selectedTeams];
-                        if (newTeams[index]) {
-                          newTeams[index] = {
-                            ...newTeams[index]!,
-                            postseasonPoints: Number(e.target.value) || 0
-                          };
-                          setSelectedTeams(newTeams);
-                        }
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                  </Box>
-                )}
+                {/* Remove admin-only score fields */}
               </Box>
             );
           })}

@@ -35,12 +35,13 @@ async function getTeamSelections(userId) {
     return {
       id: team.id,
       schoolName: team.schoolName,
-      teamName: teamDetails.teamName || "Unknown",
+      teamName: team.teamName || teamDetails.teamName || "Unknown",
       location: teamDetails.location || "Unknown",
-      conference: teamDetails.conference || "Unknown",
+      conference: team.conference || teamDetails.conference || "Unknown",
       sport: team.sport || "football", // Default to football for backward compatibility
       regularSeasonPoints: team.regularSeasonPoints || 0,
-      postseasonPoints: team.postseasonPoints || 0
+      postseasonPoints: team.postseasonPoints || 0,
+      totalPoints: (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)
     };
   });
   
@@ -78,14 +79,57 @@ async function updateTeamSelections(event, userId) {
     return createCorsResponse(400, { message: 'Must select exactly 8 teams' });
   }
   
-  // Extract the minimal data needed (id, schoolName, sport, and score points)
-  const minimalTeamData = teamSelections.map(team => ({
-    id: team.id,
-    schoolName: team.schoolName,
-    sport: team.sport || sport, // Use provided sport or default
-    regularSeasonPoints: team.regularSeasonPoints || 0,
-    postseasonPoints: team.postseasonPoints || 0
-  }));
+  // First, get existing team selections to preserve point data
+  let existingPointsMap = new Map();
+  
+  try {
+    const existingDataParams = {
+      TableName: process.env.TEAM_SELECTIONS_TABLE,
+      Key: { userId }
+    };
+    
+    const existingDataCommand = new GetCommand(existingDataParams);
+    const existingDataResult = await dynamodb.send(existingDataCommand);
+    
+    // If user has existing selections, build a lookup map for team points
+    if (existingDataResult.Item && existingDataResult.Item.teamSelections) {
+      const existingSelections = existingDataResult.Item.teamSelections;
+      
+      // Create a map of existing team points by team ID
+      existingSelections.forEach(existingTeam => {
+        if (existingTeam.id && (existingTeam.regularSeasonPoints || existingTeam.postseasonPoints)) {
+          existingPointsMap.set(existingTeam.id, {
+            regularSeasonPoints: existingTeam.regularSeasonPoints || 0,
+            postseasonPoints: existingTeam.postseasonPoints || 0
+          });
+        }
+      });
+      
+      console.log(`Found ${existingPointsMap.size} existing team scores to preserve`);
+    }
+  } catch (err) {
+    console.warn('Error getting existing team selections for preserving scores:', err);
+    // Continue with empty map
+  }
+  
+  // Extract team data, preserving existing point information
+  const minimalTeamData = teamSelections.map(team => {
+    // Get existing points for this team if available
+    const existingPoints = existingPointsMap.get(team.id) || {};
+    
+    return {
+      id: team.id,
+      schoolName: team.schoolName,
+      teamName: team.teamName,
+      conference: team.conference,
+      sport: team.sport || sport, // Use provided sport or default
+      // Use existing points rather than overwriting with zeros
+      regularSeasonPoints: existingPoints.regularSeasonPoints || 0,
+      postseasonPoints: existingPoints.postseasonPoints || 0,
+      // Calculate total points
+      totalPoints: (existingPoints.regularSeasonPoints || 0) + (existingPoints.postseasonPoints || 0)
+    };
+  });
   
   // First check if the user already exists in the table
   const checkParams = {
@@ -110,6 +154,8 @@ async function updateTeamSelections(event, userId) {
         updatedAt: timestamp
       }
     };
+    
+    console.log('Creating new team selections record with data:', minimalTeamData);
     
     const putCommand = new PutCommand(putParams);
     await dynamodb.send(putCommand);
@@ -138,6 +184,8 @@ async function updateTeamSelections(event, userId) {
       ReturnValues: 'ALL_NEW'
     };
     
+    console.log('Saving team selections with preserved point data:', minimalTeamData);
+    
     const updateCommand = new UpdateCommand(updateParams);
     const updateResult = await dynamodb.send(updateCommand);
     
@@ -156,12 +204,13 @@ async function updateTeamSelections(event, userId) {
       return {
         id: team.id,
         schoolName: team.schoolName,
-        teamName: teamDetails.teamName || "Unknown",
+        teamName: team.teamName || teamDetails.teamName || "Unknown",
         location: teamDetails.location || "Unknown",
-        conference: teamDetails.conference || "Unknown",
+        conference: team.conference || teamDetails.conference || "Unknown",
         sport: team.sport || "football", // Default to football for backward compatibility
         regularSeasonPoints: team.regularSeasonPoints || 0,
-        postseasonPoints: team.postseasonPoints || 0
+        postseasonPoints: team.postseasonPoints || 0,
+        totalPoints: (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)
       };
     });
     
@@ -209,10 +258,13 @@ async function getAllTeamSelections(sport) {
             id: team.id,
             teamId: team.id, // For consistency with TeamScore interface
             schoolName: team.schoolName,
-            teamName: teamDetails.teamName || team.teamName || "Unknown",
+            teamName: team.teamName || teamDetails.teamName || "Unknown",
             location: teamDetails.location || "Unknown",
-            conference: teamDetails.conference || "Unknown",
-            sport: team.sport || sport || "football"
+            conference: team.conference || teamDetails.conference || "Unknown",
+            sport: team.sport || sport || "football",
+            regularSeasonPoints: team.regularSeasonPoints || 0,
+            postseasonPoints: team.postseasonPoints || 0,
+            totalPoints: (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)
           };
           teamMap.set(team.schoolName, enhancedTeam);
         }

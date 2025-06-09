@@ -70,6 +70,18 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
 export const updateTeamSelections = async (teamSelections: TeamSelection[], userId: string, admin: boolean): Promise<TeamSelection[]> => {
   // Set the sport to football by default for backward compatibility
   const sport = teamSelections[0]?.sport || 'football';
+  
+  // Remove point information before sending to backend
+  const cleanedTeamSelections = teamSelections.map(team => ({
+    id: team.id,
+    schoolName: team.schoolName,
+    teamName: team.teamName,
+    location: team.location,
+    conference: team.conference,
+    sport: team.sport,
+    selectionType: team.selectionType
+  }));
+  
   try {
     // Import auth functions
     const authModule = await import('aws-amplify/auth');
@@ -97,10 +109,10 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[], user
       path,
       options: {
         headers,
-        // Use the appropriate property based on sport
+        // Use the appropriate property based on sport with cleaned selections
         body: JSON.stringify(sport === 'football' 
-          ? { footballSelections: teamSelections } 
-          : { mensbballSelections: teamSelections })
+          ? { footballSelections: cleanedTeamSelections } 
+          : { mensbballSelections: cleanedTeamSelections })
       } as any
     });
     

@@ -9,6 +9,16 @@ export interface TeamScore {
   sport: SportType;
   regularSeasonPoints: number;
   postseasonPoints: number;
+  
+  // Football specific scoring fields
+  regularSeasonWins?: number;
+  regularSeasonChampion?: boolean;
+  conferenceChampion?: boolean;
+  cfpAppearance?: boolean;
+  bowlWin?: boolean;
+  cfpWins?: number;
+  cfpSemiFinalWin?: boolean;
+  cfpChampion?: boolean;
 }
 
 /**

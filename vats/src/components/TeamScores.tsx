@@ -18,7 +18,10 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
-  Tooltip
+  Tooltip,
+  Checkbox,
+  FormControlLabel,
+  Grid
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { SportType, ALL_SPORTS } from '../constants/sports';
@@ -27,7 +30,7 @@ import { SportType, ALL_SPORTS } from '../constants/sports';
 import { getTeamScores, updateTeamScores, TeamScore } from '../services/teamScores';
 import { getAllTeamSelections, TeamSelection } from '../services/api';
 
-// Enhanced type that combines TeamScore and TeamSelection
+// Enhanced type that combines TeamScore and TeamSelection with football scoring fields
 interface EnhancedTeamScore extends Partial<TeamSelection>, Partial<TeamScore> {
   teamId: string;
   schoolName: string;
@@ -36,6 +39,16 @@ interface EnhancedTeamScore extends Partial<TeamSelection>, Partial<TeamScore> {
   sport: SportType;
   regularSeasonPoints: number;
   postseasonPoints: number;
+  
+  // Football specific scoring fields
+  regularSeasonWins?: number;
+  regularSeasonChampion?: boolean;
+  conferenceChampion?: boolean;
+  cfpAppearance?: boolean;
+  bowlWin?: boolean;
+  cfpWins?: number;
+  cfpSemiFinalWin?: boolean;
+  cfpChampion?: boolean;
 }
 
 interface TeamScoresProps {
@@ -88,15 +101,40 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
           // Try to find existing score using id as teamId
           const existingScore = scoreMap.get(team.id);
           
-          return {
+          // Create base team object with common fields
+          const baseTeam = {
             teamId: team.id || team.schoolName, // Use id as teamId or fallback to schoolName
             schoolName: team.schoolName,
             teamName: team.teamName,
             conference: team.conference,
             sport: selectedSport as SportType,
-            regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
-            postseasonPoints: existingScore?.postseasonPoints || 0
-          } as EnhancedTeamScore;
+          };
+          
+          // For football, include the football-specific scoring fields
+          if (selectedSport === SportType.FOOTBALL) {
+            return {
+              ...baseTeam,
+              // Preserve existing football-specific values or initialize with defaults
+              regularSeasonWins: existingScore?.regularSeasonWins || 0,
+              regularSeasonChampion: existingScore?.regularSeasonChampion || false,
+              conferenceChampion: existingScore?.conferenceChampion || false,
+              cfpAppearance: existingScore?.cfpAppearance || false,
+              bowlWin: existingScore?.bowlWin || false,
+              cfpWins: existingScore?.cfpWins || 0,
+              cfpSemiFinalWin: existingScore?.cfpSemiFinalWin || false,
+              cfpChampion: existingScore?.cfpChampion || false,
+              // Set calculated point values
+              regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
+              postseasonPoints: existingScore?.postseasonPoints || 0
+            } as EnhancedTeamScore;
+          } else {
+            // For non-football sports, use the simple points model
+            return {
+              ...baseTeam,
+              regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
+              postseasonPoints: existingScore?.postseasonPoints || 0
+            } as EnhancedTeamScore;
+          }
         });
         
         console.log(`Created ${teamsWithScores.length} team scores`);
@@ -118,7 +156,86 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
     setSelectedSport(event.target.value as SportType);
   };
 
-  // Handle score change
+  // Calculate football scores based on the rules
+  const calculateFootballScores = (team: EnhancedTeamScore): { regularSeasonPoints: number, postseasonPoints: number } => {
+    // Skip calculation for non-football sports
+    if (team.sport !== SportType.FOOTBALL) {
+      return {
+        regularSeasonPoints: team.regularSeasonPoints || 0,
+        postseasonPoints: team.postseasonPoints || 0
+      };
+    }
+    
+    // Calculate regular season points
+    // 5 per regular season win
+    // 10 regular season title
+    const regularSeasonPoints = 
+      (team.regularSeasonWins || 0) * 5 + 
+      (team.regularSeasonChampion ? 10 : 0);
+    
+    // Calculate postseason points
+    // 10 conference championship title
+    // 5 CFP appearance
+    // 5 bowl win
+    // 15 per CFP win
+    // 20 CFP semi final win
+    // 30 title game winner
+    const postseasonPoints = 
+      (team.conferenceChampion ? 10 : 0) +
+      (team.cfpAppearance ? 5 : 0) +
+      (team.bowlWin ? 5 : 0) +
+      (team.cfpWins || 0) * 15 +
+      (team.cfpSemiFinalWin ? 20 : 0) +
+      (team.cfpChampion ? 30 : 0);
+      
+    return { regularSeasonPoints, postseasonPoints };
+  };
+
+  // Handle numeric field change
+  const handleNumericFieldChange = (teamId: string, field: 'regularSeasonWins' | 'cfpWins', value: string) => {
+    // Ensure value is non-negative
+    const numValue = Math.max(Number(value) || 0, 0);
+    
+    setTeamScores(prevScores => 
+      prevScores.map(team => {
+        if (team.teamId !== teamId) return team;
+        
+        const updatedTeam = { ...team, [field]: numValue };
+        // Recalculate points based on updated values
+        const { regularSeasonPoints, postseasonPoints } = calculateFootballScores(updatedTeam);
+        
+        return {
+          ...updatedTeam,
+          regularSeasonPoints,
+          postseasonPoints
+        };
+      })
+    );
+  };
+  
+  // Handle checkbox field change
+  const handleCheckboxChange = (
+    teamId: string, 
+    field: 'regularSeasonChampion' | 'conferenceChampion' | 'cfpAppearance' | 'bowlWin' | 'cfpSemiFinalWin' | 'cfpChampion'
+  ) => {
+    setTeamScores(prevScores => 
+      prevScores.map(team => {
+        if (team.teamId !== teamId) return team;
+        
+        const updatedTeam = { ...team, [field]: !(team[field] || false) };
+        // Recalculate points based on updated values
+        const { regularSeasonPoints, postseasonPoints } = calculateFootballScores(updatedTeam);
+        
+        return {
+          ...updatedTeam,
+          regularSeasonPoints,
+          postseasonPoints
+        };
+      })
+    );
+  };
+  
+  // Legacy handler for non-football sports
   const handleScoreChange = (teamId: string, field: 'regularSeasonPoints' | 'postseasonPoints', value: string) => {
     // Ensure value is non-negative
     const numValue = Math.max(Number(value) || 0, 0);
@@ -165,7 +282,7 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
   };
 
   // Sort type management
-  type SortField = 'schoolName' | 'teamName' | 'conference' | 'regularSeasonPoints' | 'postseasonPoints' | 'total';
+  type SortField = 'schoolName' | 'conference' | 'regularSeasonPoints' | 'postseasonPoints' | 'total';
   const [sortField, setSortField] = useState<SortField>('total');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
@@ -190,7 +307,6 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
       const searchText = filterText.toLowerCase();
       return (
         team.schoolName?.toLowerCase().includes(searchText) ||
-        team.teamName?.toLowerCase().includes(searchText) ||
         team.conference?.toLowerCase().includes(searchText)
       );
     });
@@ -293,92 +409,238 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {saveSuccess && <Alert severity="success" sx={{ mb: 2 }}>Scores saved successfully!</Alert>}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell 
-                onClick={() => handleSort('schoolName')} 
-                sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
-              >
-                School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </TableCell>
-              <TableCell 
-                onClick={() => handleSort('teamName')} 
-                sx={{ cursor: 'pointer', fontWeight: sortField === 'teamName' ? 'bold' : 'normal' }}
-              >
-                Team {sortField === 'teamName' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </TableCell>
-              <TableCell 
-                onClick={() => handleSort('conference')} 
-                sx={{ cursor: 'pointer', fontWeight: sortField === 'conference' ? 'bold' : 'normal' }}
-              >
-                Conference {sortField === 'conference' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </TableCell>
-              <TableCell 
-                align="right" 
-                onClick={() => handleSort('regularSeasonPoints')} 
-                sx={{ cursor: 'pointer', fontWeight: sortField === 'regularSeasonPoints' ? 'bold' : 'normal' }}
-              >
-                Regular Season Points {sortField === 'regularSeasonPoints' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </TableCell>
-              <TableCell 
-                align="right" 
-                onClick={() => handleSort('postseasonPoints')} 
-                sx={{ cursor: 'pointer', fontWeight: sortField === 'postseasonPoints' ? 'bold' : 'normal' }}
-              >
-                Postseason Points {sortField === 'postseasonPoints' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </TableCell>
-              <TableCell 
-                align="right" 
-                onClick={() => handleSort('total')} 
-                sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
-              >
-                Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredAndSortedTeams.map((team, index) => (
-              <TableRow key={team.teamId} hover>
-                <TableCell>
-                  {sortField === 'total' && sortDirection === 'desc' && (
-                    <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
-                      {index + 1}.  
-                    </span>
-                  )}
-                  {team.schoolName}
+      {/* Show different UI based on sport */}
+      {selectedSport === SportType.FOOTBALL ? (
+        /* Football-specific scoring UI */
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  onClick={() => handleSort('schoolName')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
+                >
+                  School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </TableCell>
-                <TableCell>{team.teamName}</TableCell>
-                <TableCell>{team.conference}</TableCell>
-                <TableCell align="right">
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={team.regularSeasonPoints}
-                    onChange={(e) => handleScoreChange(team.teamId, 'regularSeasonPoints', e.target.value)}
-                    sx={{ width: 80, input: { textAlign: 'right' } }}
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={team.postseasonPoints}
-                    onChange={(e) => handleScoreChange(team.teamId, 'postseasonPoints', e.target.value)}
-                    sx={{ width: 80, input: { textAlign: 'right' } }}
-                  />
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                  <Tooltip title="Total Points" arrow>
-                    <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
-                  </Tooltip>
+                {/* Team column removed */}
+                <TableCell colSpan={8} align="center">Scoring Rules</TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('total')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
+                >
+                  Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              <TableRow>
+                <TableCell colSpan={1}></TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regular Season Wins<br/>(5 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Reg Season<br/>Champion<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Conference<br/>Champion<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  CFP<br/>Appearance<br/>(5 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Bowl<br/>Win<br/>(5 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  CFP Wins<br/>(15 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  CFP Semi<br/>Final Win<br/>(20 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  CFP<br/>Champion<br/>(30 pts)
+                </TableCell>
+                <TableCell align="right"></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedTeams.map((team, index) => (
+                <TableRow key={team.teamId} hover>
+                  <TableCell>
+                    {sortField === 'total' && sortDirection === 'desc' && (
+                      <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
+                        {index + 1}.  
+                      </span>
+                    )}
+                    {team.schoolName}
+                  </TableCell>
+                  {/* Team cell removed */}
+                  
+                  {/* Regular Season Wins (5 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.regularSeasonWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'regularSeasonWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 15 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Regular Season Champion (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.regularSeasonChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'regularSeasonChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* Conference Champion (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.conferenceChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'conferenceChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* CFP Appearance (5 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.cfpAppearance || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'cfpAppearance')}
+                    />
+                  </TableCell>
+                  
+                  {/* Bowl Win (5 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.bowlWin || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'bowlWin')}
+                    />
+                  </TableCell>
+                  
+                  {/* CFP Wins (15 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.cfpWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'cfpWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 3 }}
+                    />
+                  </TableCell>
+                  
+                  {/* CFP Semi Final Win (20 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.cfpSemiFinalWin || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'cfpSemiFinalWin')}
+                    />
+                  </TableCell>
+                  
+                  {/* CFP Champion (30 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.cfpChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'cfpChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* Total Points */}
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                    <Tooltip title="Total: Regular Season + Postseason Points" arrow>
+                      <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        /* Default UI for other sports */
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  onClick={() => handleSort('schoolName')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
+                >
+                  School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                {/* Team column removed */}
+                <TableCell 
+                  onClick={() => handleSort('conference')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'conference' ? 'bold' : 'normal' }}
+                >
+                  Conference {sortField === 'conference' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('regularSeasonPoints')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'regularSeasonPoints' ? 'bold' : 'normal' }}
+                >
+                  Regular Season Points {sortField === 'regularSeasonPoints' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('postseasonPoints')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'postseasonPoints' ? 'bold' : 'normal' }}
+                >
+                  Postseason Points {sortField === 'postseasonPoints' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('total')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
+                >
+                  Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedTeams.map((team, index) => (
+                <TableRow key={team.teamId} hover>
+                  <TableCell>
+                    {sortField === 'total' && sortDirection === 'desc' && (
+                      <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
+                        {index + 1}.  
+                      </span>
+                    )}
+                    {team.schoolName}
+                  </TableCell>
+                  {/* Team cell removed */}
+                  <TableCell>{team.conference}</TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.regularSeasonPoints}
+                      onChange={(e) => handleScoreChange(team.teamId, 'regularSeasonPoints', e.target.value)}
+                      sx={{ width: 80, input: { textAlign: 'right' } }}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.postseasonPoints}
+                      onChange={(e) => handleScoreChange(team.teamId, 'postseasonPoints', e.target.value)}
+                      sx={{ width: 80, input: { textAlign: 'right' } }}
+                    />
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                    <Tooltip title="Total Points" arrow>
+                      <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   );
 };

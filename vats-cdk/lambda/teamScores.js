@@ -74,21 +74,55 @@ async function updateTeamScores(event) {
   // Log event details to help debug
   var body = JSON.parse(event.body);
   var parsedBody = JSON.parse(body);
-  console.log('body JSON:', parsedBody);
+  console.log('Body received for team score update:', parsedBody);
 
   var teamScores = parsedBody.teamScores;
+  console.log(`Processing ${teamScores ? teamScores.length : 0} team scores`);
   
   // Validate team scores array
   if (!Array.isArray(teamScores)) {
     return createCorsResponse(400, { message: 'Invalid team scores format' });
   }
   
+  // Log some details about the team scores being updated
+  teamScores.forEach((team, index) => {
+    console.log(`Team ${index + 1}:`, {
+      teamId: team.teamId,
+      sport: team.sport,
+      schoolName: team.schoolName,
+      teamName: team.teamName,
+      regularSeasonPoints: team.regularSeasonPoints,
+      postseasonPoints: team.postseasonPoints,
+      // Log football-specific fields if present
+      ...(team.regularSeasonWins !== undefined && { regularSeasonWins: team.regularSeasonWins }),
+      ...(team.regularSeasonChampion !== undefined && { regularSeasonChampion: team.regularSeasonChampion }),
+      ...(team.conferenceChampion !== undefined && { conferenceChampion: team.conferenceChampion }),
+      ...(team.cfpAppearance !== undefined && { cfpAppearance: team.cfpAppearance }),
+      ...(team.bowlWin !== undefined && { bowlWin: team.bowlWin }),
+      ...(team.cfpWins !== undefined && { cfpWins: team.cfpWins }),
+      ...(team.cfpSemiFinalWin !== undefined && { cfpSemiFinalWin: team.cfpSemiFinalWin }),
+      ...(team.cfpChampion !== undefined && { cfpChampion: team.cfpChampion })
+    });
+  });
+  
   // Create a batch of promises to update each team's score
   const updatePromises = teamScores.map(async (team) => {
-    // Validate required fields
+    // Validate and sanitize required fields
     if (!team.teamId || !team.sport) {
       console.warn('Skipping team with missing required fields:', team);
       return;
+    }
+    
+    // Ensure IDs are strings
+    const teamId = String(team.teamId);
+    const sport = String(team.sport);
+    
+    console.log(`Processing team update for: ${teamId} (${sport})`);
+    
+    // Make sure we have schoolName
+    if (!team.schoolName) {
+      team.schoolName = team.teamName || teamId;
+      console.log(`Missing schoolName, using fallback: ${team.schoolName}`);
     }
     
     const timestamp = new Date().toISOString();
@@ -97,8 +131,8 @@ async function updateTeamScores(event) {
     const checkParams = {
       TableName: process.env.TEAM_SCORES_TABLE,
       Key: { 
-        teamId: team.teamId,
-        sport: team.sport
+        teamId: teamId,
+        sport: sport
       }
     };
     
@@ -110,13 +144,24 @@ async function updateTeamScores(event) {
       const putParams = {
         TableName: process.env.TEAM_SCORES_TABLE,
         Item: {
-          teamId: team.teamId,
-          sport: team.sport,
+          teamId: teamId,
+          sport: sport,
           schoolName: team.schoolName,
           teamName: team.teamName || "",
           conference: team.conference || "",
           regularSeasonPoints: team.regularSeasonPoints || 0,
           postseasonPoints: team.postseasonPoints || 0,
+          // Store football specific scoring fields if provided
+          regularSeasonWins: team.regularSeasonWins,
+          regularSeasonChampion: team.regularSeasonChampion,
+          conferenceChampion: team.conferenceChampion,
+          cfpAppearance: team.cfpAppearance,
+          bowlWin: team.bowlWin,
+          cfpWins: team.cfpWins,
+          cfpSemiFinalWin: team.cfpSemiFinalWin,
+          cfpChampion: team.cfpChampion,
+          // Store any other fields provided
+          totalPoints: team.totalPoints || (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0),
           createdAt: timestamp,
           updatedAt: timestamp
         }
@@ -129,13 +174,29 @@ async function updateTeamScores(event) {
       const updateParams = {
         TableName: process.env.TEAM_SCORES_TABLE,
         Key: { 
-          teamId: team.teamId,
-          sport: team.sport
+          teamId: teamId,
+          sport: sport
         },
         Item: {
           ...existingRecord.Item,
+          // Update basic team info
+          teamName: team.teamName || existingRecord.Item.teamName || "",
+          conference: team.conference || existingRecord.Item.conference || "",
+          schoolName: team.schoolName || existingRecord.Item.schoolName,
+          // Update score points
           regularSeasonPoints: team.regularSeasonPoints || existingRecord.Item.regularSeasonPoints || 0,
           postseasonPoints: team.postseasonPoints || existingRecord.Item.postseasonPoints || 0,
+          // Update football specific scoring fields if provided
+          regularSeasonWins: team.regularSeasonWins !== undefined ? team.regularSeasonWins : existingRecord.Item.regularSeasonWins,
+          regularSeasonChampion: team.regularSeasonChampion !== undefined ? team.regularSeasonChampion : existingRecord.Item.regularSeasonChampion,
+          conferenceChampion: team.conferenceChampion !== undefined ? team.conferenceChampion : existingRecord.Item.conferenceChampion,
+          cfpAppearance: team.cfpAppearance !== undefined ? team.cfpAppearance : existingRecord.Item.cfpAppearance,
+          bowlWin: team.bowlWin !== undefined ? team.bowlWin : existingRecord.Item.bowlWin,
+          cfpWins: team.cfpWins !== undefined ? team.cfpWins : existingRecord.Item.cfpWins,
+          cfpSemiFinalWin: team.cfpSemiFinalWin !== undefined ? team.cfpSemiFinalWin : existingRecord.Item.cfpSemiFinalWin,
+          cfpChampion: team.cfpChampion !== undefined ? team.cfpChampion : existingRecord.Item.cfpChampion,
+          // Update total points
+          totalPoints: team.totalPoints || (team.regularSeasonPoints || existingRecord.Item.regularSeasonPoints || 0) + (team.postseasonPoints || existingRecord.Item.postseasonPoints || 0),
           updatedAt: timestamp
         }
       };
@@ -147,7 +208,21 @@ async function updateTeamScores(event) {
   
   // Execute all update operations
   try {
-    await Promise.all(updatePromises);
+    const results = await Promise.all(updatePromises);
+    console.log(`Successfully updated ${results.filter(Boolean).length} team scores`);
+    
+    // Get updated scores to verify
+    const verifyParams = {
+      TableName: process.env.TEAM_SCORES_TABLE,
+      FilterExpression: 'attribute_exists(teamId)'
+    };
+    
+    const verifyCommand = new ScanCommand(verifyParams);
+    const verifyResult = await dynamodb.send(verifyCommand);
+    const updatedTeamScores = verifyResult.Items || [];
+    
+    console.log(`Verification: ${updatedTeamScores.length} total team scores in database`);
+    
     return createCorsResponse(200, { 
       message: 'Team scores updated successfully',
       updatedCount: teamScores.length

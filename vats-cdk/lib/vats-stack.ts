@@ -379,8 +379,6 @@ export class VatsStack extends cdk.Stack {
     // Create API endpoints
     const users = api.root.addResource('users');
     
-    const userProfile = users.addResource('{userId}');
-    
     // Configure Lambda integration with proxy integration and CORS response handling
     const apiIntegration = new apigateway.LambdaIntegration(apiLambda, {
       proxy: true,
@@ -425,6 +423,14 @@ export class VatsStack extends cdk.Stack {
         }
       }
     ];
+    
+    // Add leaderboard endpoint
+    const leaderboard = api.root.addResource('leaderboard');
+    leaderboard.addMethod('GET', apiIntegration, {
+      methodResponses: standardMethodResponses
+    });
+    
+    const userProfile = users.addResource('{userId}');
     
     // Set up methods with proper CORS error responses
     userProfile.addMethod('GET', apiIntegration, {

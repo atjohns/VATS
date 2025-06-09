@@ -9,13 +9,21 @@ import {
   Toolbar,
   Button,
   CircularProgress,
-  Avatar
+  Avatar,
+  Paper,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import TeamSelectionForm from '../components/TeamSelectionForm';
+import Leaderboard from '../components/Leaderboard';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import vatsLogo from '../assets/vats.png';
-import { SportType, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
+import { SportType, ALL_SPORTS } from '../constants/sports';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -44,13 +52,20 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const Home: React.FC = () => {
-  const [tabValue, setTabValue] = useState(0);
+  // Main tab index: sports (0, 1, ...) or leaderboard (ALL_SPORTS.length)
+  const [tabIndex, setTabIndex] = useState(0);
+  // Selected sport for the leaderboard
+  const [selectedLeaderboardSport, setSelectedLeaderboardSport] = useState<SportType>(ALL_SPORTS[0].id);
   const [signingOut, setSigningOut] = useState(false);
   const { user, signOut, isLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+    setTabIndex(newValue);
+  };
+
+  const handleLeaderboardSportChange = (event: SelectChangeEvent) => {
+    setSelectedLeaderboardSport(event.target.value as SportType);
   };
 
   const handleSignOut = async () => {
@@ -128,23 +143,58 @@ const Home: React.FC = () => {
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs 
-          value={tabValue} 
+          value={tabIndex} 
           onChange={handleTabChange} 
-          aria-label="basic tabs example"
+          aria-label="main-tabs"
           centered
         >
-          {ALL_SPORTS.map((sport, index) => (
+          {/* Sports tabs for team selections */}
+          {ALL_SPORTS.map((sport) => (
             <Tab key={sport.id} label={sport.displayName} />
           ))}
+          
+          {/* Leaderboard tab */}
+          <Tab label="Leaderboard" />
         </Tabs>
       </Box>
 
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        {ALL_SPORTS.map((sport, index) => (
-          <TabPanel key={sport.id} value={tabValue} index={index}>
-            <TeamSelectionForm sport={sport.id} />
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        {/* Sport-specific team selection panels */}
+        {ALL_SPORTS.map((sport, i) => (
+          <TabPanel key={sport.id} value={tabIndex} index={i}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>My {sport.displayName} Team Selections</Typography>
+              <Divider sx={{ mb: 2 }} />
+              <TeamSelectionForm sport={sport.id} />
+            </Paper>
           </TabPanel>
         ))}
+        
+        {/* Leaderboard panel with sport selector */}
+        <TabPanel value={tabIndex} index={ALL_SPORTS.length}>
+          <Paper sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">Leaderboard</Typography>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel id="leaderboard-sport-select-label">Sport</InputLabel>
+                <Select
+                  labelId="leaderboard-sport-select-label"
+                  value={selectedLeaderboardSport}
+                  label="Sport"
+                  onChange={handleLeaderboardSportChange}
+                >
+                  {ALL_SPORTS.map(sport => (
+                    <MenuItem key={sport.id} value={sport.id}>
+                      {sport.displayName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Divider sx={{ mb: 3 }} />
+            <Leaderboard sport={selectedLeaderboardSport} />
+          </Paper>
+        </TabPanel>
       </Container>
     </Box>
   );
