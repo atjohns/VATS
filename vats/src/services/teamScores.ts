@@ -4,7 +4,6 @@ import { SportType } from '../constants/sports';
 export interface TeamScore {
   teamId: string;
   schoolName: string;
-  teamName: string;
   conference: string;
   sport: SportType;
   regularSeasonPoints: number;

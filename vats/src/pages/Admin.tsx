@@ -20,12 +20,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import vatsLogo from '../assets/vats.png';
 import { getUserTeamSelections, updateUserTeamSelections, getAllUsers } from '../services/api';
+import { UserPerkSelection } from '../constants/perks';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
 import TeamSelectionForm from '../components/TeamSelectionForm';
 import TeamScores from '../components/TeamScores';
-import { SportType, SPORTS, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
+import { SportType, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
 import { Tabs, Tab } from '@mui/material';
 
 interface User {
@@ -38,8 +39,6 @@ interface User {
 interface TeamSelection {
   id?: string;
   schoolName: string;
-  teamName: string;
-  location: string;
   conference: string;
   selectionType?: string; // For categorizing (ride_or_die, sec, acc, etc.)
   sport?: string; // Added for multi-sport support: 'football', 'mensbball', etc.
@@ -49,6 +48,7 @@ const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [teamSelections, setTeamSelections] = useState<TeamSelection[]>([]);
+  const [userPerks, setUserPerks] = useState<UserPerkSelection[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [loadingTeams, setLoadingTeams] = useState(false);
@@ -85,8 +85,19 @@ const Admin: React.FC = () => {
       const fetchTeamSelections = async () => {
         try {
           setLoadingTeams(true);
-          const selections = await getUserTeamSelections(selectedUser.userId);
-          setTeamSelections(selections);
+          const userSelections = await getUserTeamSelections(selectedUser.userId);
+          
+          // Extract selections based on sport
+          let sportSelections: TeamSelection[] = [];
+          if (selectedSport === SportType.FOOTBALL && userSelections.footballSelections) {
+            sportSelections = userSelections.footballSelections;
+          } else if (userSelections.teamSelections) {
+            sportSelections = userSelections.teamSelections;
+          }
+          
+          // Set the team selections and perks
+          setTeamSelections(sportSelections);
+          setUserPerks(userSelections.perks || []);
           setError(null);
           
           // Reset team form display
@@ -102,7 +113,7 @@ const Admin: React.FC = () => {
 
       fetchTeamSelections();
     }
-  }, [selectedUser]);
+  }, [selectedUser, selectedSport]);
 
   const handleUserSelect = (user: User) => {
     setSelectedUser(user);
@@ -113,17 +124,26 @@ const Admin: React.FC = () => {
     setSelectedSport(event.target.value as SportType);
   };
   
-  const handleTeamFormSave = (teams: TeamSelection[]) => {
+  const handleTeamFormSave = (teams: TeamSelection[], updatedPerks?: UserPerkSelection[]) => {
     // Add sport field to each team if not present
     const teamsWithSport = teams.map(team => ({
       ...team,
       sport: team.sport || selectedSport
     }));
     
-    updateUserTeamSelections(selectedUser!.userId, teamsWithSport)
-      .then(() => {
+    // Use updated perks if provided, otherwise use existing ones
+    const perksToSave = updatedPerks || userPerks;
+    
+    updateUserTeamSelections(selectedUser!.userId, teamsWithSport, perksToSave)
+      .then((result) => {
         setSaveSuccess(true);
         setTeamSelections(teamsWithSport);
+        
+        // Update perks if they were returned
+        if (result.perks) {
+          setUserPerks(result.perks);
+        }
+        
         setShowTeamForm(false);
         
         // Clear success message after 3 seconds

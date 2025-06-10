@@ -163,7 +163,7 @@ const Home: React.FC = () => {
         {ALL_SPORTS.map((sport, i) => (
           <TabPanel key={sport.id} value={tabIndex} index={i}>
             <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>My {sport.displayName} Team Selections</Typography>
+              <Typography variant="h6" gutterBottom>{sport.displayName} Selections</Typography>
               <Divider sx={{ mb: 2 }} />
               <TeamSelectionForm sport={sport.id} />
             </Paper>

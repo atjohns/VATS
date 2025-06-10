@@ -20,8 +20,6 @@ import {
   SelectChangeEvent,
   Tooltip,
   Checkbox,
-  FormControlLabel,
-  Grid
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { SportType, ALL_SPORTS } from '../constants/sports';
@@ -34,7 +32,6 @@ import { getAllTeamSelections, TeamSelection } from '../services/api';
 interface EnhancedTeamScore extends Partial<TeamSelection>, Partial<TeamScore> {
   teamId: string;
   schoolName: string;
-  teamName: string;
   conference: string;
   sport: SportType;
   regularSeasonPoints: number;
@@ -105,7 +102,6 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
           const baseTeam = {
             teamId: team.id || team.schoolName, // Use id as teamId or fallback to schoolName
             schoolName: team.schoolName,
-            teamName: team.teamName,
             conference: team.conference,
             sport: selectedSport as SportType,
           };

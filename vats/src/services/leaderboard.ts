@@ -1,5 +1,4 @@
 import { get } from 'aws-amplify/api';
-import { TeamScore } from './teamScores';
 import { SportType } from '../constants/sports';
 
 export interface UserScore {
@@ -13,7 +12,6 @@ export interface UserScore {
 export interface UserTeamScore {
   teamId: string;
   schoolName: string;
-  teamName: string;
   conference: string;
   regularSeasonPoints: number;
   postseasonPoints: number;
@@ -67,7 +65,6 @@ export const getLeaderboard = async (sport: SportType = SportType.FOOTBALL): Pro
         const processedTeams = (user.teams || []).map((team: any) => ({
           teamId: team.teamId || '',
           schoolName: team.schoolName || 'Unknown School',
-          teamName: team.teamName || 'Unknown',
           conference: team.conference || 'Unknown',
           regularSeasonPoints: team.regularSeasonPoints || 0,
           postseasonPoints: team.postseasonPoints || 0,
@@ -107,7 +104,7 @@ function getMockLeaderboardData(sport: SportType): UserScore[] {
     {
       teamId: '1',
       schoolName: 'University of Georgia',
-      teamName: 'Bulldogs',
+      teamNme: 'Bulldogs',
       conference: 'SEC',
       regularSeasonPoints: 35,
       postseasonPoints: 20,
@@ -116,7 +113,6 @@ function getMockLeaderboardData(sport: SportType): UserScore[] {
     {
       teamId: '2',
       schoolName: 'University of Michigan',
-      teamName: 'Wolverines',
       conference: 'Big Ten',
       regularSeasonPoints: 30,
       postseasonPoints: 25,
@@ -125,7 +121,6 @@ function getMockLeaderboardData(sport: SportType): UserScore[] {
     {
       teamId: '3',
       schoolName: 'University of Alabama',
-      teamName: 'Crimson Tide',
       conference: 'SEC',
       regularSeasonPoints: 28,
       postseasonPoints: 15,

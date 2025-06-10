@@ -84,7 +84,6 @@ async function getLeaderboard(sport = 'football') {
           if (!teamDetails) {
             teamDetails = allTeamSelections.find(t => t.schoolName === team.schoolName) || {
               schoolName: team.schoolName || 'Unknown School',
-              teamName: team.teamName || 'Unknown',
               conference: team.conference || 'Unknown'
             };
           }
@@ -97,7 +96,6 @@ async function getLeaderboard(sport = 'football') {
           return {
             teamId: team.id,
             schoolName: team.schoolName || teamDetails.schoolName,
-            teamName: teamDetails.teamName || team.teamName || 'Unknown',
             conference: teamDetails.conference || team.conference || 'Unknown',
             regularSeasonPoints,
             postseasonPoints,

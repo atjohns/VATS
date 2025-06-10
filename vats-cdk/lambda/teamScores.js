@@ -54,7 +54,6 @@ async function getTeamScore(teamId, sport) {
     return createCorsResponse(200, { 
       teamId,
       schoolName: teamDetails.schoolName || teamId,
-      teamName: teamDetails.teamName || "",
       conference: teamDetails.conference || "",
       sport: sport || "football",
       regularSeasonPoints: 0,
@@ -90,7 +89,6 @@ async function updateTeamScores(event) {
       teamId: team.teamId,
       sport: team.sport,
       schoolName: team.schoolName,
-      teamName: team.teamName,
       regularSeasonPoints: team.regularSeasonPoints,
       postseasonPoints: team.postseasonPoints,
       // Log football-specific fields if present
@@ -121,7 +119,7 @@ async function updateTeamScores(event) {
     
     // Make sure we have schoolName
     if (!team.schoolName) {
-      team.schoolName = team.teamName || teamId;
+      team.schoolName = teamId;
       console.log(`Missing schoolName, using fallback: ${team.schoolName}`);
     }
     
@@ -147,7 +145,6 @@ async function updateTeamScores(event) {
           teamId: teamId,
           sport: sport,
           schoolName: team.schoolName,
-          teamName: team.teamName || "",
           conference: team.conference || "",
           regularSeasonPoints: team.regularSeasonPoints || 0,
           postseasonPoints: team.postseasonPoints || 0,
@@ -180,7 +177,6 @@ async function updateTeamScores(event) {
         Item: {
           ...existingRecord.Item,
           // Update basic team info
-          teamName: team.teamName || existingRecord.Item.teamName || "",
           conference: team.conference || existingRecord.Item.conference || "",
           schoolName: team.schoolName || existingRecord.Item.schoolName,
           // Update score points

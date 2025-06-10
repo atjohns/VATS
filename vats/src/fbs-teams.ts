@@ -603,13 +603,6 @@ export const fbsTeams: FBSTeam[] = [
     "conference": "AAC"
   },
   {
-    "id": "93e06d1b-4a03-457e-80ab-6d74bbb8cfe5",
-    "teamName": "Roadrunners",
-    "schoolName": "University of Texas at San Antonio",
-    "location": "San Antonio, TX",
-    "conference": "AAC"
-  },
-  {
     "id": "a5b17d0e-a488-4f64-84da-7593d8c5a8d1",
     "teamName": "Aztecs",
     "schoolName": "San Diego State University",
@@ -736,24 +729,10 @@ export const fbsTeams: FBSTeam[] = [
     "conference": "AAC"
   },
   {
-    "id": "7f8c48d0-3d66-40ee-b964-0f141cb0c8d9",
-    "teamName": "Bruins",
-    "schoolName": "University of California, Los Angeles",
-    "location": "Los Angeles, CA",
-    "conference": "Big Ten"
-  },
-  {
     "id": "a8375eb7-6bb0-4179-be75-2b4e0902afd1",
     "teamName": "Knights",
     "schoolName": "University of Central Florida",
     "location": "Orlando, FL",
-    "conference": "Big 12"
-  },
-  {
-    "id": "6717ffe6-4b87-4362-9a07-b139cb3a657f",
-    "teamName": "Bearcats",
-    "schoolName": "University of Cincinnati",
-    "location": "Cincinnati, OH",
     "conference": "Big 12"
   },
   {
@@ -771,13 +750,6 @@ export const fbsTeams: FBSTeam[] = [
     "conference": "Conference USA"
   },
   {
-    "id": "c19bdec0-798f-4297-adb1-b31003659fb1",
-    "teamName": "Cougars",
-    "schoolName": "University of Houston",
-    "location": "Houston, TX",
-    "conference": "Big 12"
-  },
-  {
     "id": "5f87901d-7189-4234-a6d0-b24be4b5fdd5",
     "teamName": "Huskies",
     "schoolName": "University of Illinois Chicago",
@@ -792,34 +764,6 @@ export const fbsTeams: FBSTeam[] = [
     "conference": "Independent"
   },
   {
-    "id": "fac24114-08e0-4b64-9630-521aa47001f7",
-    "teamName": "Tigers",
-    "schoolName": "University of Memphis",
-    "location": "Memphis, TN",
-    "conference": "AAC"
-  },
-  {
-    "id": "a0a8010e-24e3-453d-9198-33ade5c6eb6f",
-    "teamName": "Hurricanes",
-    "schoolName": "University of Miami",
-    "location": "Coral Gables, FL",
-    "conference": "ACC"
-  },
-  {
-    "id": "c61c9696-6ea7-4dc6-bc21-acf682830fb9",
-    "teamName": "Rebels",
-    "schoolName": "University of Nevada, Las Vegas",
-    "location": "Las Vegas, NV",
-    "conference": "Mountain West"
-  },
-  {
-    "id": "53344a21-e73d-4f9d-9e46-1677ad8f1b71",
-    "teamName": "Lobos",
-    "schoolName": "University of New Mexico",
-    "location": "Albuquerque, NM",
-    "conference": "Mountain West"
-  },
-  {
     "id": "bcbe06fe-95e8-437a-a91a-dd594bc474e6",
     "teamName": "Mean Green",
     "schoolName": "University of North Texas",
@@ -832,13 +776,6 @@ export const fbsTeams: FBSTeam[] = [
     "schoolName": "University of Texas at San Antonio",
     "location": "San Antonio, TX",
     "conference": "AAC"
-  },
-  {
-    "id": "7a28d8de-16cd-4b18-b4b2-87db529c4f3d",
-    "teamName": "Thundering Herd",
-    "schoolName": "Marshall University",
-    "location": "Huntington, WV",
-    "conference": "Sun Belt"
   },
   {
     "id": "95208f0c-2f76-4c80-b18f-4856e720605f",

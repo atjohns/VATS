@@ -1,11 +1,10 @@
 import { get, put } from 'aws-amplify/api';
+import { UserPerkSelection } from '../constants/perks';
 
 // Team selections management
 export interface TeamSelection {
   id?: string;
   schoolName: string;
-  teamName: string;
-  location: string;
   conference: string;
   selectionType?: string; // Added for admin functionality
   sport?: string; // Added for multi-sport support: 'football', 'mensbball', etc.
@@ -13,10 +12,19 @@ export interface TeamSelection {
   postseasonPoints?: number; // Points earned during postseason
 }
 
+// User selections response interface
+export interface UserSelections {
+  userId: string;
+  footballSelections?: TeamSelection[];
+  mensbballSelections?: TeamSelection[];
+  teamSelections?: TeamSelection[]; // Legacy format
+  perks?: UserPerkSelection[]; // User's perk selections
+}
+
 /**
  * Common function to get team selections for a user (either for self or as admin)
  */
-export const getTeamSelections = async (userId: string, admin: boolean): Promise<TeamSelection[]> => {
+export const getTeamSelections = async (userId: string, admin: boolean): Promise<UserSelections> => {
   try {
     // Import auth functions
     const authModule = await import('aws-amplify/auth');
@@ -52,11 +60,17 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
     try {
       const parsedBody = JSON.parse(responseBody);
       console.log('Team selections response:', parsedBody);
-      // Return sport-specific selections if available, fall back to legacy format if needed
-      return parsedBody.footballSelections || parsedBody.teamSelections || [];
+      // Return the full selections object with perks
+      return {
+        userId,
+        footballSelections: parsedBody.footballSelections || [],
+        mensbballSelections: parsedBody.mensbballSelections || [],
+        teamSelections: parsedBody.teamSelections || [],
+        perks: parsedBody.perks || []
+      };
     } catch (e) {
       console.error('Error parsing response body:', e);
-      return [];
+      throw e;
     }
   } catch (error) {
     console.error(`Error getting team selections${userId ? ` for user ${userId}` : ''}:`, error);
@@ -67,7 +81,12 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
 /**
  * Common function to update team selections for a user (either self or as admin)
  */
-export const updateTeamSelections = async (teamSelections: TeamSelection[], userId: string, admin: boolean): Promise<TeamSelection[]> => {
+export const updateTeamSelections = async (
+  teamSelections: TeamSelection[], 
+  userId: string, 
+  admin: boolean, 
+  perks?: UserPerkSelection[]
+): Promise<UserSelections> => {
   // Set the sport to football by default for backward compatibility
   const sport = teamSelections[0]?.sport || 'football';
   
@@ -75,8 +94,6 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[], user
   const cleanedTeamSelections = teamSelections.map(team => ({
     id: team.id,
     schoolName: team.schoolName,
-    teamName: team.teamName,
-    location: team.location,
     conference: team.conference,
     sport: team.sport,
     selectionType: team.selectionType
@@ -111,8 +128,14 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[], user
         headers,
         // Use the appropriate property based on sport with cleaned selections
         body: JSON.stringify(sport === 'football' 
-          ? { footballSelections: cleanedTeamSelections } 
-          : { mensbballSelections: cleanedTeamSelections })
+          ? { 
+              footballSelections: cleanedTeamSelections,
+              perks: perks || []
+            } 
+          : { 
+              mensbballSelections: cleanedTeamSelections,
+              perks: perks || []
+            })
       } as any
     });
     
@@ -123,11 +146,18 @@ export const updateTeamSelections = async (teamSelections: TeamSelection[], user
     try {
       const parsedBody = JSON.parse(responseBody);
       console.log('Update response:', parsedBody);
-      // Return sport-specific selections if available, fall back to legacy format if needed
-      return (sport === 'football' ? parsedBody.footballSelections : parsedBody.mensbballSelections) || parsedBody.teamSelections || [];
+      
+      // Return the full user selections with perks
+      return {
+        userId,
+        footballSelections: parsedBody.footballSelections || [],
+        mensbballSelections: parsedBody.mensbballSelections || [],
+        teamSelections: parsedBody.teamSelections || [],
+        perks: parsedBody.perks || []
+      };
     } catch (e) {
       console.error('Error parsing response body:', e);
-      return [];
+      throw e;
     }
   } catch (error) {
     console.error(`Error updating team selections${userId ? ` for user ${userId}` : ''}:`, error);
@@ -197,7 +227,7 @@ export const getAllUsers = async (): Promise<UserData[]> => {
 };
 
 // Get team selections for specific user (admin only)
-export const getUserTeamSelections = async (userId: string): Promise<TeamSelection[]> => {
+export const getUserTeamSelections = async (userId: string): Promise<UserSelections> => {
   // Use the common getTeamSelections function with the userId parameter
   return getTeamSelections(userId, true);
 };
@@ -205,10 +235,11 @@ export const getUserTeamSelections = async (userId: string): Promise<TeamSelecti
 // Update team selections for specific user (admin only)
 export const updateUserTeamSelections = async (
   userId: string,
-  teamSelections: TeamSelection[]
-): Promise<TeamSelection[]> => {
+  teamSelections: TeamSelection[],
+  perks?: UserPerkSelection[]
+): Promise<UserSelections> => {
   // Use the common updateTeamSelections function with the userId parameter
-  return updateTeamSelections(teamSelections, userId, true);
+  return updateTeamSelections(teamSelections, userId, true, perks);
 };
 
 /**
@@ -269,11 +300,17 @@ export const getAllTeamSelections = async (sport: string = 'football'): Promise<
       
       // Flatten and deduplicate by team ID
       const teamMap = new Map();
-      allSelectionsArrays.forEach(selections => {
-        selections.filter(s => !s.sport || s.sport === sport).forEach(team => {
-          // Use schoolName as the unique identifier
-          teamMap.set(team.schoolName, team);
-        });
+      allSelectionsArrays.forEach(userSelections => {
+        // Extract team selections from the response
+        const sportTeams = userSelections.footballSelections || userSelections.mensbballSelections || userSelections.teamSelections || [];
+        
+        // Filter and process teams
+        sportTeams
+          .filter((team: TeamSelection) => !team.sport || team.sport === sport)
+          .forEach((team: TeamSelection) => {
+            // Use schoolName as the unique identifier
+            teamMap.set(team.schoolName, team);
+          });
       });
       
       return Array.from(teamMap.values());

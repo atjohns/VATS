@@ -16,6 +16,8 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { getTeamSelections, updateTeamSelections, TeamSelection } from '../services/api';
+import { getPerkById, UserPerkSelection } from '../constants/perks';
+import PerkSelector from './PerkSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { fbsTeams, FBSTeam } from '../fbs-teams';
 import { SportType, SPORTS, DEFAULT_SPORT, SLOT_LABELS as SPORT_SLOT_LABELS } from '../constants/sports';
@@ -28,7 +30,7 @@ interface TeamSelectionFormProps {
   initialTeams?: TeamSelection[]; // For admin/edit mode
   userId?: string; // For admin mode
   isAdmin?: boolean; // For admin mode
-  onSave?: (teams: TeamSelection[]) => void; // For custom save handling
+  onSave?: (teams: TeamSelection[], perks?: UserPerkSelection[]) => void; // For custom save handling
 }
 
 const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ 
@@ -46,6 +48,8 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   // Initialize array with 8 null slots  
   const { user } = useAuth();
   const [selectedTeams, setSelectedTeams] = useState<(TeamSelection | null)[]>(Array(maxTeams).fill(null));
+  const [selectedPerks, setSelectedPerks] = useState<UserPerkSelection[]>([]);
+  const [allSportsPerks, setAllSportsPerks] = useState<UserPerkSelection[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(!readOnly);
@@ -99,31 +103,31 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         // We already handle initialTeams in a separate useEffect
         
         console.log('User', user);
-        // Get team selections from API
-        const selections = await getTeamSelections(userId || user?.userId || '', isAdmin);
+        // Get team selections and perks from API
+        const userSelections = await getTeamSelections(userId || user?.userId || '', isAdmin);
         
-        // Filter selections based on sport if needed
-        const sportFiltered = selections.filter(
-          (team: TeamSelection) => !team.sport || team.sport === sport
-        );
+        // Get perks from the response
+        const fetchedPerks = userSelections.perks || [];
+        setAllSportsPerks(fetchedPerks);
         
-        // Ensure selections is always an array with valid team objects
-        let teamSelectionsArray = [];
+        // Filter perks for just this sport
+        const sportPerks = fetchedPerks.filter(perk => perk.sportType === sport);
+        setSelectedPerks(sportPerks);
         
-        if (Array.isArray(selections)) {
-          teamSelectionsArray = sportFiltered; // Use the filtered selections based on sport
-        } else if (selections && typeof selections === 'object') {
-          // Try to extract teamSelections property if it exists
-          const extractedSelections = (selections as any).teamSelections;
-          if (Array.isArray(extractedSelections)) {
-            teamSelectionsArray = extractedSelections.filter(
-              (team: TeamSelection) => !team.sport || team.sport === sport
-            );
-          } else {
-            console.warn('Could not extract teamSelections array from object:', selections);
-          }
+        // Get team selections
+        let teamSelectionsArray:any[] = [];
+        
+        if (sport === SportType.FOOTBALL && Array.isArray(userSelections.footballSelections)) {
+          teamSelectionsArray = userSelections.footballSelections;
+        //} else if (sport === SportType.FOOTBALL && Array.isArray(userSelections.mensbballSelections)) {
+        //  teamSelectionsArray = userSelections.mensbballSelections;
+        } else if (Array.isArray(userSelections.teamSelections)) {
+          // Legacy format - filter by sport
+          teamSelectionsArray = userSelections.teamSelections.filter(
+            (team: TeamSelection) => !team.sport || team.sport === sport
+          );
         } else {
-          console.warn('API returned invalid selections format:', typeof selections);
+          console.warn('Could not extract team selections from response:', userSelections);
         }
                
         // Validate each team object to ensure it has the required properties
@@ -167,7 +171,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
 
     console.log('Starting team selections fetch');
     fetchTeamSelections();
-  }, [initialTeams, userId, user?.userId, sport, isAdmin]);
+  }, [initialTeams, userId, user?.userId, sport, isAdmin, maxTeams, user]);
 
   // Effect to handle empty teams in read-only mode
   useEffect(() => {   
@@ -228,10 +232,15 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       
       // If a custom onSave handler is provided, use it instead
       if (onSave) {
-        onSave(teamsToSave);
+        onSave(teamsToSave, selectedPerks);
       } else {
         // Otherwise use the default API call
-        await updateTeamSelections(teamsToSave, userId || user?.userId || '', isAdmin);
+        await updateTeamSelections(
+          teamsToSave, 
+          userId || user?.userId || '', 
+          isAdmin,
+          selectedPerks
+        );
         alert('Team selections saved successfully');
       }
       
@@ -249,6 +258,33 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
     setEditMode(true);
   };
 
+  const handlePerkSelect = (perk: UserPerkSelection) => {
+    // Check if we already have 2 perks for this sport
+    const currentSportPerks = selectedPerks.filter(p => p.sportType === sport);
+    if (currentSportPerks.length >= 2) {
+      alert('You can only select 2 perks per sport.');
+      return;
+    }
+    
+    // Check if this perk is already selected
+    if (selectedPerks.some(p => p.perkId === perk.perkId && p.sportType === sport)) {
+      alert('You have already selected this perk for this sport.');
+      return;
+    }
+    
+    // Add the new perk
+    setSelectedPerks([...selectedPerks, perk]);
+    setAllSportsPerks([...allSportsPerks, perk]);
+  };
+  
+  const handlePerkRemove = (perkId: string) => {
+    // Remove from selected perks
+    setSelectedPerks(selectedPerks.filter(p => !(p.perkId === perkId && p.sportType === sport)));
+    
+    // Also remove from all sports perks
+    setAllSportsPerks(allSportsPerks.filter(p => !(p.perkId === perkId && p.sportType === sport)));
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
@@ -261,6 +297,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   if (hasExistingSelections && !editMode) {    
     return (
       <Box sx={{ maxWidth: 800, margin: '0 auto' }}>       
+        {/* Team Selections Card */}
         <Card variant="outlined" sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
@@ -274,7 +311,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                     if (!team) return null;
                     
                     // Extract team properties with fallbacks
-                    const { id, schoolName = 'Unknown School', teamName = '', location = '', conference = '', regularSeasonPoints = 0, postseasonPoints = 0 } = team;
+                    const { id, schoolName = 'Unknown School', conference = '' } = team;
                     
                     return (
                       <Paper 
@@ -286,12 +323,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                           {slotLabels[index]}
                         </Typography>
                         <Typography variant="body1">
-                          {schoolName} {teamName}
+                          {schoolName}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {location} • {conference}
+                          {conference}
                         </Typography>
-                        {/* Remove points display */}
                       </Paper>
                     );
                   })}
@@ -318,20 +354,31 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
             </Button>
           </CardActions>
         </Card>
+
+        {/* Selected Perks Card */}
+        <PerkSelector
+          sport={sport}
+          selectedPerks={selectedPerks.filter(p => p.sportType === sport)}
+          onPerkSelect={handlePerkSelect}
+          onPerkRemove={handlePerkRemove}
+          allUserPerks={allSportsPerks}
+          availableTeams={selectedTeams.filter((team): team is TeamSelection => team !== null)
+            .map(team => ({
+              id: team.id || '',
+              schoolName: team.schoolName,
+              teamName: '', // TeamSelection doesn't have teamName
+              location: '', // TeamSelection doesn't have location
+              conference: team.conference || ''
+            })) as FBSTeam[]}
+          edit={false}
+        />
       </Box>
     );
   }
 
   // Edit mode or new selections
   return (
-    <Box sx={{ maxWidth: 800, margin: '0 auto' }}>
-      <Typography variant="h5" gutterBottom>
-        {hasExistingSelections ? `Edit Your ${sportConfig.displayName} Roster` : `Select ${sportConfig.displayName} Roster`}
-      </Typography>
-      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-        Choose a {sportConfig.displayName.toLowerCase()} team for each of the {maxTeams} slots
-      </Typography>
-      
+    <Box sx={{ maxWidth: 800, margin: '0 auto' }}>     
       <form onSubmit={handleSubmit}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           {slotLabels.map((label, index) => {
@@ -378,7 +425,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                   value={selectedTeams[index] as FBSTeam | null}
                   onChange={(_, newValue) => handleTeamChange(index, newValue)}
                   options={getFilteredTeams()}
-                  getOptionLabel={(option) => `${option.schoolName} ${option.teamName}`}
+                  getOptionLabel={(option) => `${option.schoolName}`}
                   renderInput={(params) => (
                     <TextField 
                       {...params} 
@@ -387,13 +434,13 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                   )}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderOption={(props, option) => (
-                    <li {...props}>
+                    <li {...props} key={option.id}>
                       <Box>
                         <Typography variant="body2">
-                          <strong>{option.schoolName}</strong> {option.teamName} 
+                          <strong>{option.schoolName}</strong>
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {option.location} • {option.conference}
+                          {option.conference}
                         </Typography>
                       </Box>
                     </li>
@@ -407,6 +454,24 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
           })}
         </Box>
         
+        {/* Perk Selector */}
+        <PerkSelector
+          sport={sport}
+          selectedPerks={selectedPerks.filter(p => p.sportType === sport)}
+          onPerkSelect={handlePerkSelect}
+          onPerkRemove={handlePerkRemove}
+          allUserPerks={allSportsPerks}
+          availableTeams={selectedTeams.filter((team): team is TeamSelection => team !== null)
+            .map(team => ({
+              id: team.id || '',
+              schoolName: team.schoolName,
+              teamName: '', // TeamSelection doesn't have teamName
+              location: '', // TeamSelection doesn't have location
+              conference: team.conference || ''
+            })) as FBSTeam[]}
+          edit={true}
+        />
+
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
           <Typography variant="body2" color="text.secondary">
             {selectedTeams.filter(team => team !== null).length} of {maxTeams} slots filled

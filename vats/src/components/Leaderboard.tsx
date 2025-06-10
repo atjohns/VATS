@@ -13,8 +13,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   CircularProgress,
-  Tooltip,
-  Avatar,
   Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';

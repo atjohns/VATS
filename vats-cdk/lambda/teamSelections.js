@@ -24,9 +24,13 @@ async function getTeamSelections(userId) {
       userId, 
       footballSelections: [], 
       mensbballSelections: [],
+      perks: [], // Add empty perks array for new users
       isNew: true 
     });
   }
+  
+  // Extract perks if they exist
+  const perks = result.Item.perks || [];
   
   // Reconstruct full team data
   const minimalTeamData = result.Item.teamSelections || [];
@@ -35,8 +39,6 @@ async function getTeamSelections(userId) {
     return {
       id: team.id,
       schoolName: team.schoolName,
-      teamName: team.teamName || teamDetails.teamName || "Unknown",
-      location: teamDetails.location || "Unknown",
       conference: team.conference || teamDetails.conference || "Unknown",
       sport: team.sport || "football", // Default to football for backward compatibility
       regularSeasonPoints: team.regularSeasonPoints || 0,
@@ -52,7 +54,8 @@ async function getTeamSelections(userId) {
   // Return with sport-specific arrays
   return createCorsResponse(200, {
     footballSelections,
-    mensbballSelections
+    mensbballSelections,
+    perks: perks // Include perks in the response
   });
 }
 
@@ -66,6 +69,7 @@ async function updateTeamSelections(event, userId) {
   console.log('body JSON:', parsedBody);
 
   var teamSelections;
+  var perks = parsedBody.perks || [];
   if (parsedBody.footballSelections) {
     teamSelections = parsedBody.footballSelections;
     sport = "football";
@@ -73,6 +77,8 @@ async function updateTeamSelections(event, userId) {
     teamSelections = parsedBody.mensbballSelections;
     sport = "mensbball";
   }
+  
+  console.log('Received perks:', perks);
   
   // Validate team selections
   if (!Array.isArray(teamSelections) || teamSelections.length !== 8) {
@@ -120,7 +126,6 @@ async function updateTeamSelections(event, userId) {
     return {
       id: team.id,
       schoolName: team.schoolName,
-      teamName: team.teamName,
       conference: team.conference,
       sport: team.sport || sport, // Use provided sport or default
       // Use existing points rather than overwriting with zeros
@@ -150,6 +155,7 @@ async function updateTeamSelections(event, userId) {
       Item: {
         userId,
         teamSelections: minimalTeamData,
+        perks: perks, // Save perks in the database
         createdAt: timestamp,
         updatedAt: timestamp
       }
@@ -168,6 +174,7 @@ async function updateTeamSelections(event, userId) {
       userId,
       footballSelections,
       mensbballSelections,
+      perks: perks, // Include perks in the response
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -176,9 +183,10 @@ async function updateTeamSelections(event, userId) {
     const updateParams = {
       TableName: process.env.TEAM_SELECTIONS_TABLE,
       Key: { userId },
-      UpdateExpression: 'SET teamSelections = :teamSelections, updatedAt = :updatedAt',
+      UpdateExpression: 'SET teamSelections = :teamSelections, perks = :perks, updatedAt = :updatedAt',
       ExpressionAttributeValues: {
         ':teamSelections': minimalTeamData,
+        ':perks': perks, // Update perks in the database
         ':updatedAt': timestamp
       },
       ReturnValues: 'ALL_NEW'
@@ -204,8 +212,6 @@ async function updateTeamSelections(event, userId) {
       return {
         id: team.id,
         schoolName: team.schoolName,
-        teamName: team.teamName || teamDetails.teamName || "Unknown",
-        location: teamDetails.location || "Unknown",
         conference: team.conference || teamDetails.conference || "Unknown",
         sport: team.sport || "football", // Default to football for backward compatibility
         regularSeasonPoints: team.regularSeasonPoints || 0,
@@ -224,6 +230,11 @@ async function updateTeamSelections(event, userId) {
       footballSelections,
       mensbballSelections
     };
+    
+    // Ensure perks are included in the response
+    if (!result.perks && updateResult.Attributes.perks) {
+      result.perks = updateResult.Attributes.perks;
+    }
   }
   
   return createCorsResponse(200, result);
@@ -258,8 +269,6 @@ async function getAllTeamSelections(sport) {
             id: team.id,
             teamId: team.id, // For consistency with TeamScore interface
             schoolName: team.schoolName,
-            teamName: team.teamName || teamDetails.teamName || "Unknown",
-            location: teamDetails.location || "Unknown",
             conference: team.conference || teamDetails.conference || "Unknown",
             sport: team.sport || sport || "football",
             regularSeasonPoints: team.regularSeasonPoints || 0,
