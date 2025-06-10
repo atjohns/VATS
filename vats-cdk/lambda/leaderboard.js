@@ -58,6 +58,11 @@ async function getLeaderboard(sport = 'football') {
         username: item.userId
       };
       
+      // Ensure we have either a name or a username
+      if (!userInfo.name || userInfo.name.trim() === '') {
+        userInfo.name = userInfo.username || userInfo.userId;
+      }
+      
       if (!item.teamSelections) {
         console.log(`No team selections found for user ${item.userId}`);
         return null;

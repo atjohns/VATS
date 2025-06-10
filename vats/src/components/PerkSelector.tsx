@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -18,7 +18,8 @@ import {
   Stepper,
   Step,
   StepLabel,
-  Paper
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
@@ -33,6 +34,7 @@ import {
 } from '../constants/perks';
 import { SportType } from '../constants/sports';
 import { FBSTeam, fbsTeams } from '../fbs-teams';
+import { User, getAllUsers, formatUserDisplayName } from '../services/userService';
 
 interface PerkSelectorProps {
   sport: SportType;
@@ -59,6 +61,8 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
   const [inputErrors, setInputErrors] = useState<{[key: string]: string}>({});
   const [activeStep, setActiveStep] = useState(0); // For stepper
   const [stepperPerk, setStepperPerk] = useState<string | null>(null); // Perk being configured in stepper
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
 
   // Filter to only show perks for current sport
   const currentSportPerks = selectedPerks.filter(p => p.sportType === sport);
@@ -68,6 +72,25 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
     counts[perk.perkId] = (counts[perk.perkId] || 0) + 1;
     return counts;
   }, {});
+
+  // Load users when needed
+  useEffect(() => {
+    async function fetchUsers() {
+      if (dialogOpen && !users.length) {
+        setLoadingUsers(true);
+        try {
+          const allUsers = await getAllUsers();
+          setUsers(allUsers);
+        } catch (error) {
+          console.error('Failed to load users for player selection:', error);
+        } finally {
+          setLoadingUsers(false);
+        }
+      }
+    }
+    
+    fetchUsers();
+  }, [dialogOpen, users.length]);
 
   const handleOpenDialog = () => {
     setDialogOpen(true);
@@ -249,14 +272,37 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                   margin="dense"
                   error={!!inputErrors[input.type]}
                 >
-                  <TextField
-                    label={input.label}
-                    placeholder={input.placeholder}
-                    value={inputValues[input.type] || ''}
-                    onChange={(e) => handleInputChange(input.type, e.target.value)}
-                    error={!!inputErrors[input.type]}
-                    helperText={inputErrors[input.type]}
-                  />
+                  {loadingUsers ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <CircularProgress size={20} />
+                      <Typography variant="body2">Loading users...</Typography>
+                    </Box>
+                  ) : (
+                    <Autocomplete
+                      id={`player-input-${index}`}
+                      options={users}
+                      getOptionLabel={(option) => formatUserDisplayName(option)}
+                      value={inputValues[input.type] || null}
+                      onChange={(_, newValue) => handleInputChange(input.type, newValue)}
+                      isOptionEqualToValue={(option, value) => 
+                        option.userId === value?.userId || option.username === value?.username
+                      }
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label={input.label}
+                          placeholder={input.placeholder}
+                          error={!!inputErrors[input.type]}
+                          helperText={inputErrors[input.type]}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props} key={option.userId}>
+                          <Typography>{formatUserDisplayName(option)}</Typography>
+                        </li>
+                      )}
+                    />
+                  )}
                 </FormControl>
               );
               
@@ -348,9 +394,13 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                         <Box key={`param-${idx}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                           <Typography variant="caption" color="text.secondary">{input.label}:</Typography>
                           <Typography variant="caption" fontWeight="bold">
-                            {typeof inputValue === 'object' && inputValue !== null && 'schoolName' in inputValue 
-                              ? String(inputValue.schoolName)
-                              : String(inputValue)}
+                            {typeof inputValue === 'object' && inputValue !== null ? (
+                              'schoolName' in inputValue ? 
+                                String(inputValue.schoolName) : 
+                                'userId' in inputValue ? 
+                                  formatUserDisplayName(inputValue as unknown as User) : 
+                                  String(inputValue)
+                            ) : String(inputValue)}
                           </Typography>
                         </Box>
                       );

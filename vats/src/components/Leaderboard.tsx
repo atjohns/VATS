@@ -19,6 +19,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { SportType, SPORTS } from '../constants/sports';
 import { getLeaderboard, UserScore } from '../services/leaderboard';
 import { useAuth } from '../contexts/AuthContext';
+import { getUserDisplayName } from '../services/userService';
 
 interface LeaderboardProps {
   sport: SportType;
@@ -28,6 +29,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
   const [userScores, setUserScores] = useState<UserScore[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [userNames, setUserNames] = useState<{[key: string]: string}>({});
   const { user } = useAuth();
 
   useEffect(() => {
@@ -52,6 +54,24 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
         // Sort by total points descending
         const sortedLeaderboard = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
         setUserScores(sortedLeaderboard);
+        
+        // Fetch display names for all users in the leaderboard
+        const userIds = sortedLeaderboard.map(score => score.userId);
+        const namesPromises = userIds.map(async (userId) => {
+          const name = await getUserDisplayName(userId);
+          return { userId, name };
+        });
+        
+        // Wait for all name lookups to complete
+        const nameResults = await Promise.all(namesPromises);
+        
+        // Build a map of user IDs to display names
+        const namesMap: {[key: string]: string} = {};
+        nameResults.forEach(({ userId, name }) => {
+          namesMap[userId] = name;
+        });
+        
+        setUserNames(namesMap);
       } catch (err) {
         console.error('Error fetching leaderboard:', err);
         setError('Failed to load leaderboard data.');
@@ -114,7 +134,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Typography variant="body2">
-                          {userScore.name || userScore.username}
+                          {userNames[userScore.userId] || userScore.name || userScore.username || userScore.userId}
                           {user?.userId === userScore.userId && (
                             <Chip 
                               label="You" 

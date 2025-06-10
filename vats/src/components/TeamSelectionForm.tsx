@@ -10,13 +10,12 @@ import {
   Divider,
   Card,
   CardContent,
-  CardActions,
   FormHelperText,
   Stack
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { getTeamSelections, updateTeamSelections, TeamSelection } from '../services/api';
-import { getPerkById, UserPerkSelection } from '../constants/perks';
+import { UserPerkSelection } from '../constants/perks';
 import PerkSelector from './PerkSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { fbsTeams, FBSTeam } from '../fbs-teams';
@@ -28,6 +27,7 @@ interface TeamSelectionFormProps {
   sport?: SportType; // The sport type this form handles
   readOnly?: boolean; // If true, shows read-only view initially
   initialTeams?: TeamSelection[]; // For admin/edit mode
+  initialPerks?: UserPerkSelection[]; // For admin/edit mode
   userId?: string; // For admin mode
   isAdmin?: boolean; // For admin mode
   onSave?: (teams: TeamSelection[], perks?: UserPerkSelection[]) => void; // For custom save handling
@@ -37,6 +37,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   sport = DEFAULT_SPORT,
   readOnly = false,
   initialTeams = [],
+  initialPerks = [],
   userId,
   isAdmin = false,
   onSave
@@ -59,7 +60,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   // Use ref to track if API has been called already (won't trigger re-renders)
   const hasLoadedFromApiRef = useRef(false);
 
-  // Initialize from initialTeams prop if available
+  // Initialize from initialTeams and initialPerks props if available
   useEffect(() => {
     if (initialTeams && initialTeams.length > 0 && initialTeams.some(team => team !== null)) {
       console.log('Initializing from initialTeams prop');
@@ -80,7 +81,19 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       setSelectedTeams(teamsArray);
       setHasExistingSelections(sportFiltered.length > 0);
     }
-  }, [initialTeams, sport, maxTeams]);
+    
+    // Initialize perks if provided
+    if (initialPerks && initialPerks.length > 0) {
+      console.log('Initializing from initialPerks prop', initialPerks);
+      
+      // Filter perks for this sport
+      const sportPerks = initialPerks.filter(perk => perk.sportType === sport);
+      setSelectedPerks(sportPerks);
+      
+      // Set all sports perks
+      setAllSportsPerks(initialPerks);
+    }
+  }, [initialTeams, initialPerks, sport, maxTeams]);
   
   // API data fetching effect - runs once on component mount
   useEffect(() => {
@@ -299,10 +312,21 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       <Box sx={{ maxWidth: 800, margin: '0 auto' }}>       
         {/* Team Selections Card */}
         <Card variant="outlined" sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-              You've selected these teams for your roster
-            </Typography>
+          <CardContent sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" color="text.secondary">
+                You've selected these teams for your roster
+              </Typography>
+              <Button 
+                startIcon={<EditIcon />} 
+                onClick={handleEditMode} 
+                color="primary"
+                size="small"
+                variant="outlined"
+              >
+                Edit Selections
+              </Button>
+            </Box>
             
             {selectedTeams && selectedTeams.some(team => team !== null) ? (
               <Box sx={{ maxHeight: 600, overflow: 'auto' }}>
@@ -343,16 +367,6 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
             )}
           </CardContent>
           <Divider />
-          <CardActions>
-            <Button 
-              startIcon={<EditIcon />} 
-              onClick={handleEditMode} 
-              color="primary"
-              sx={{ ml: 'auto' }}
-            >
-              Edit Selections
-            </Button>
-          </CardActions>
         </Card>
 
         {/* Selected Perks Card */}

@@ -338,6 +338,7 @@ const Admin: React.FC = () => {
                   <TeamSelectionForm 
                     sport={selectedSport}
                     initialTeams={teamSelections.filter(team => !team.sport || team.sport === selectedSport)}
+                    initialPerks={userPerks.filter(perk => perk.sportType === selectedSport)}
                     userId={selectedUser.userId}
                     isAdmin={true}
                     readOnly={!showTeamForm}
