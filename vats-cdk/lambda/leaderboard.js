@@ -109,17 +109,28 @@ async function getLeaderboard(sport = 'football') {
         })
         .filter(Boolean); // Remove any null entries
       
-      // Calculate total points for this user
-      const totalPoints = teamSelections.reduce(
+      // Get perk adjustment for this sport if it exists
+      const perkAdjustment = item.perkAdjustments && item.perkAdjustments[sport] ? Number(item.perkAdjustments[sport]) : 0;
+      console.log(`Perk adjustment for user ${item.userId}:`, item.perkAdjustments, `Raw: ${item.perkAdjustments && item.perkAdjustments[sport]}`, `Result: ${perkAdjustment} points`);
+      
+      // Log the stringified perkAdjustments to check for nesting issues
+      console.log('perkAdjustments stringified:', JSON.stringify(item.perkAdjustments));
+      
+      // Calculate total points for this user (including perk adjustment)
+      const teamPoints = teamSelections.reduce(
         (sum, team) => sum + (team.totalPoints || 0), 
         0
       );
+      
+      // Add perk adjustment to total points
+      const totalPoints = teamPoints + perkAdjustment;
       
       return {
         userId: item.userId,
         username: userInfo.username || item.userId,
         name: userInfo.name,
         totalPoints,
+        perkAdjustment,
         teams: teamSelections
       };
     })

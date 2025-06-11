@@ -29,8 +29,9 @@ async function getTeamSelections(userId) {
     });
   }
   
-  // Extract perks if they exist
+  // Extract perks and perk adjustments if they exist
   const perks = result.Item.perks || [];
+  const perkAdjustments = result.Item.perkAdjustments || {};
   
   // Reconstruct full team data
   const minimalTeamData = result.Item.teamSelections || [];
@@ -55,7 +56,8 @@ async function getTeamSelections(userId) {
   return createCorsResponse(200, {
     footballSelections,
     mensbballSelections,
-    perks: perks // Include perks in the response
+    perks: perks, // Include perks in the response
+    perkAdjustments: perkAdjustments // Include perk adjustments in the response
   });
 }
 
@@ -64,12 +66,32 @@ async function getTeamSelections(userId) {
  */
 async function updateTeamSelections(event, userId) {
   // Log event details to help debug
-  var body = JSON.parse(event.body);
-  var parsedBody = JSON.parse(body);
-  console.log('body JSON:', parsedBody);
+  var parsedBody;
+  try {
+    // Handle both string and already-parsed JSON body formats
+    if (typeof event.body === 'string') {
+      // API Gateway sends the body as a JSON string
+      const body = JSON.parse(event.body);
+      // Sometimes the body is double-stringified
+      if (typeof body === 'string') {
+        parsedBody = JSON.parse(body);
+      } else {
+        parsedBody = body;
+      }
+    } else {
+      // Body is already parsed (e.g., in test environments)
+      parsedBody = event.body;
+    }
+    console.log('body JSON:', parsedBody);
+    console.log('perkAdjustments:', parsedBody.perkAdjustments);
+  } catch (e) {
+    console.error('Error parsing request body:', e, 'Raw body:', event.body);
+    return createCorsResponse(400, { message: 'Invalid request body format' });
+  }
 
   var teamSelections;
   var perks = parsedBody.perks || [];
+  var perkAdjustments = parsedBody.perkAdjustments || {};
   if (parsedBody.footballSelections) {
     teamSelections = parsedBody.footballSelections;
     sport = "football";
@@ -156,6 +178,7 @@ async function updateTeamSelections(event, userId) {
         userId,
         teamSelections: minimalTeamData,
         perks: perks, // Save perks in the database
+        perkAdjustments: perkAdjustments, // Save perk adjustments in the database
         createdAt: timestamp,
         updatedAt: timestamp
       }
@@ -175,6 +198,7 @@ async function updateTeamSelections(event, userId) {
       footballSelections,
       mensbballSelections,
       perks: perks, // Include perks in the response
+      perkAdjustments: perkAdjustments, // Include perk adjustments in the response
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -183,10 +207,11 @@ async function updateTeamSelections(event, userId) {
     const updateParams = {
       TableName: process.env.TEAM_SELECTIONS_TABLE,
       Key: { userId },
-      UpdateExpression: 'SET teamSelections = :teamSelections, perks = :perks, updatedAt = :updatedAt',
+      UpdateExpression: 'SET teamSelections = :teamSelections, perks = :perks, perkAdjustments = :perkAdjustments, updatedAt = :updatedAt',
       ExpressionAttributeValues: {
         ':teamSelections': minimalTeamData,
         ':perks': perks, // Update perks in the database
+        ':perkAdjustments': perkAdjustments, // Update perk adjustments in the database
         ':updatedAt': timestamp
       },
       ReturnValues: 'ALL_NEW'

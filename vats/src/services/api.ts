@@ -19,6 +19,7 @@ export interface UserSelections {
   mensbballSelections?: TeamSelection[];
   teamSelections?: TeamSelection[]; // Legacy format
   perks?: UserPerkSelection[]; // User's perk selections
+  perkAdjustments?: { [key: string]: number }; // Sport-specific perk point adjustments
 }
 
 /**
@@ -66,6 +67,7 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
         footballSelections: parsedBody.footballSelections || [],
         mensbballSelections: parsedBody.mensbballSelections || [],
         teamSelections: parsedBody.teamSelections || [],
+        perkAdjustments: parsedBody.perkAdjustments || {},
         perks: parsedBody.perks || []
       };
     } catch (e) {
@@ -85,7 +87,8 @@ export const updateTeamSelections = async (
   teamSelections: TeamSelection[], 
   userId: string, 
   admin: boolean, 
-  perks?: UserPerkSelection[]
+  perks?: UserPerkSelection[],
+  perkAdjustments?: { [key: string]: number }
 ): Promise<UserSelections> => {
   // Set the sport to football by default for backward compatibility
   const sport = teamSelections[0]?.sport || 'football';
@@ -130,14 +133,19 @@ export const updateTeamSelections = async (
         body: JSON.stringify(sport === 'football' 
           ? { 
               footballSelections: cleanedTeamSelections,
-              perks: perks || []
+              perks: perks || [],
+              perkAdjustments: perkAdjustments || {}
             } 
           : { 
               mensbballSelections: cleanedTeamSelections,
-              perks: perks || []
+              perks: perks || [],
+              perkAdjustments: perkAdjustments || {}
             })
-      } as any
+      }
     });
+    
+    // Log what we're sending to the server
+    console.log('Sending perkAdjustments to server:', perkAdjustments, 'for sport:', sport);
     
     // Get and parse the response
     const { body } = await putPromise.response;
@@ -153,7 +161,8 @@ export const updateTeamSelections = async (
         footballSelections: parsedBody.footballSelections || [],
         mensbballSelections: parsedBody.mensbballSelections || [],
         teamSelections: parsedBody.teamSelections || [],
-        perks: parsedBody.perks || []
+        perks: parsedBody.perks || [],
+        perkAdjustments: parsedBody.perkAdjustments || {}
       };
     } catch (e) {
       console.error('Error parsing response body:', e);
@@ -236,10 +245,11 @@ export const getUserTeamSelections = async (userId: string): Promise<UserSelecti
 export const updateUserTeamSelections = async (
   userId: string,
   teamSelections: TeamSelection[],
-  perks?: UserPerkSelection[]
+  perks?: UserPerkSelection[],
+  perkAdjustments?: { [key: string]: number }
 ): Promise<UserSelections> => {
   // Use the common updateTeamSelections function with the userId parameter
-  return updateTeamSelections(teamSelections, userId, true, perks);
+  return updateTeamSelections(teamSelections, userId, true, perks, perkAdjustments);
 };
 
 /**

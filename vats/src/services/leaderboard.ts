@@ -7,6 +7,7 @@ export interface UserScore {
   name?: string;
   totalPoints: number;
   teams: UserTeamScore[];
+  perkAdjustment?: number; // Points adjustment for perks
 }
 
 export interface UserTeamScore {
@@ -54,8 +55,6 @@ export const getLeaderboard = async (sport: SportType = SportType.FOOTBALL): Pro
     
     try {
       const parsedBody = JSON.parse(responseBody);
-      console.log('Leaderboard response:', parsedBody);
-      
       // Extract userScores array from the response
       const userScores = parsedBody.userScores || [];
       
@@ -77,6 +76,7 @@ export const getLeaderboard = async (sport: SportType = SportType.FOOTBALL): Pro
           username: user.username || 'Anonymous',
           name: user.name || user.username || 'Anonymous',
           totalPoints: user.totalPoints || 0,
+          perkAdjustment: user.perkAdjustment || 0,
           teams: processedTeams
         };
       });

@@ -28,9 +28,11 @@ interface TeamSelectionFormProps {
   readOnly?: boolean; // If true, shows read-only view initially
   initialTeams?: TeamSelection[]; // For admin/edit mode
   initialPerks?: UserPerkSelection[]; // For admin/edit mode
+  initialPerkAdjustments?: { [key: string]: number }; // For admin/edit mode
   userId?: string; // For admin mode
   isAdmin?: boolean; // For admin mode
-  onSave?: (teams: TeamSelection[], perks?: UserPerkSelection[]) => void; // For custom save handling
+  onSave?: (teams: TeamSelection[], perks?: UserPerkSelection[], perkAdjustments?: { [key: string]: number }) => void; // For custom save handling
+  onSaveSuccess?: () => void; // Callback for when save succeeds (without passing data)
 }
 
 const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({ 
@@ -38,9 +40,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   readOnly = false,
   initialTeams = [],
   initialPerks = [],
+  initialPerkAdjustments = {},
   userId,
   isAdmin = false,
-  onSave
+  onSave,
+  onSaveSuccess
 }) => {
   // Get sport-specific configuration
   const sportConfig = SPORTS[sport] || SPORTS[DEFAULT_SPORT];
@@ -56,11 +60,20 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   const [editMode, setEditMode] = useState(!readOnly);
   const [hasExistingSelections, setHasExistingSelections] = useState(false);
   const [errors, setErrors] = useState<string[]>(Array(maxTeams).fill(''));
+  const [perkAdjustments, setPerkAdjustments] = useState<{[key: string]: number}>(initialPerkAdjustments || {});
 
   // Use ref to track if API has been called already (won't trigger re-renders)
   const hasLoadedFromApiRef = useRef(false);
 
   // Initialize from initialTeams and initialPerks props if available
+  // Initialize perk adjustments from props
+  useEffect(() => {
+    if (initialPerkAdjustments && Object.keys(initialPerkAdjustments).length > 0) {
+      console.log('Initializing from initialPerkAdjustments prop:', initialPerkAdjustments);
+      setPerkAdjustments(initialPerkAdjustments);
+    }
+  }, [initialPerkAdjustments]);
+  
   useEffect(() => {
     if (initialTeams && initialTeams.length > 0 && initialTeams.some(team => team !== null)) {
       console.log('Initializing from initialTeams prop');
@@ -103,9 +116,9 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       return;
     }
     
-    // Admin mode should never make API calls
-    if (isAdmin) {
-      console.log('Admin mode - skipping API call');
+    // Only skip API call in admin mode if initialTeams are provided
+    if (isAdmin && initialTeams && initialTeams.length > 0) {
+      console.log('Admin mode with initialTeams - skipping API call');
       return;
     }
     
@@ -118,6 +131,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         console.log('User', user);
         // Get team selections and perks from API
         const userSelections = await getTeamSelections(userId || user?.userId || '', isAdmin);
+        console.log('Perk adjustments found', userSelections.perkAdjustments);
         
         // Get perks from the response
         const fetchedPerks = userSelections.perks || [];
@@ -132,6 +146,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         
         if (sport === SportType.FOOTBALL && Array.isArray(userSelections.footballSelections)) {
           teamSelectionsArray = userSelections.footballSelections;
+          setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
         //} else if (sport === SportType.FOOTBALL && Array.isArray(userSelections.mensbballSelections)) {
         //  teamSelectionsArray = userSelections.mensbballSelections;
         } else if (Array.isArray(userSelections.teamSelections)) {
@@ -245,16 +260,22 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       
       // If a custom onSave handler is provided, use it instead
       if (onSave) {
-        onSave(teamsToSave, selectedPerks);
+        onSave(teamsToSave, selectedPerks, perkAdjustments);
       } else {
         // Otherwise use the default API call
         await updateTeamSelections(
           teamsToSave, 
           userId || user?.userId || '', 
           isAdmin,
-          selectedPerks
+          selectedPerks,
+          perkAdjustments
         );
         alert('Team selections saved successfully');
+      }
+      
+      // Call onSaveSuccess callback if provided
+      if (onSaveSuccess) {
+        onSaveSuccess();
       }
       
       setHasExistingSelections(true);
@@ -309,7 +330,23 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   // Read-only view for existing selections
   if (hasExistingSelections && !editMode) {    
     return (
-      <Box sx={{ maxWidth: 800, margin: '0 auto' }}>       
+      <Box sx={{ maxWidth: 800, margin: '0 auto' }}>   
+       {isAdmin && (
+          <Box sx={{ mt: 4, mb: 4 }}>
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Perk Point Adjustments for {sport}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <TextField 
+                  label="Point Adjustment"
+                  disabled={true}
+                  value={perkAdjustments[sport] || 0}                  
+                />
+              </Box>
+            </Paper>
+          </Box>
+        )}    
         {/* Team Selections Card */}
         <Card variant="outlined" sx={{ mb: 3 }}>
           <CardContent sx={{ pb: 1 }}>
@@ -394,6 +431,37 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   return (
     <Box sx={{ maxWidth: 800, margin: '0 auto' }}>     
       <form onSubmit={handleSubmit}>
+        {/* Admin-only Perk Adjustments */}
+        {isAdmin && (
+          <Box sx={{ mt: 4, mb: 4 }}>
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Perk Point Adjustments for {sport}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <TextField 
+                  label="Point Adjustment"
+                  type="number"
+                  size="small"
+                  value={perkAdjustments[sport] || 0}
+                  onChange={(e) => {
+                    // Ensure the value is a proper number
+                    const value = parseInt(e.target.value) || 0;
+                    // Create a new object to ensure state update triggers correctly
+                    const newAdjustments = {
+                      ...perkAdjustments,
+                      [sport]: value
+                    };
+                    console.log('Setting perk adjustments to:', newAdjustments, 'for sport:', sport, 'value:', value);
+                    setPerkAdjustments(newAdjustments);
+                  }}
+                  helperText="Manual adjustment to add or subtract points from total score"
+                />
+              </Box>
+            </Paper>
+          </Box>
+        )}
+
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           {slotLabels.map((label, index) => {
             // Define filtering rules based on the slot index/label
@@ -466,8 +534,8 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               </Box>
             );
           })}
-        </Box>
-        
+        </Box>                
+
         {/* Perk Selector */}
         <PerkSelector
           sport={sport}

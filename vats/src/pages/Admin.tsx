@@ -19,8 +19,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import vatsLogo from '../assets/vats.png';
-import { getUserTeamSelections, updateUserTeamSelections, getAllUsers } from '../services/api';
-import { UserPerkSelection } from '../constants/perks';
+import { getAllUsers } from '../services/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
@@ -36,25 +35,18 @@ interface User {
   name?: string;
 }
 
-interface TeamSelection {
-  id?: string;
-  schoolName: string;
-  conference: string;
-  selectionType?: string; // For categorizing (ride_or_die, sec, acc, etc.)
-  sport?: string; // Added for multi-sport support: 'football', 'mensbball', etc.
-}
+// Using TeamSelection from api.ts instead of redefining here
 
 const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [teamSelections, setTeamSelections] = useState<TeamSelection[]>([]);
-  const [userPerks, setUserPerks] = useState<UserPerkSelection[]>([]);
+  // No longer need separate state for team selections, perks, and adjustments
+  // TeamSelectionForm will handle this internally
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [selectedSport, setSelectedSport] = useState<SportType>(DEFAULT_SPORT);
   const [showTeamForm, setShowTeamForm] = useState(false);
   const { signOut, isAdmin } = useAuth(); // Remove unused 'user' variable
@@ -79,39 +71,21 @@ const Admin: React.FC = () => {
     fetchUsers();
   }, []);
 
-  // Load selected user's team selections
+  // Handle loading state for user selections
   useEffect(() => {
+    // Just manage loading state - TeamSelectionForm will handle fetching the data
     if (selectedUser) {
-      const fetchTeamSelections = async () => {
-        try {
-          setLoadingTeams(true);
-          const userSelections = await getUserTeamSelections(selectedUser.userId);
-          
-          // Extract selections based on sport
-          let sportSelections: TeamSelection[] = [];
-          if (selectedSport === SportType.FOOTBALL && userSelections.footballSelections) {
-            sportSelections = userSelections.footballSelections;
-          } else if (userSelections.teamSelections) {
-            sportSelections = userSelections.teamSelections;
-          }
-          
-          // Set the team selections and perks
-          setTeamSelections(sportSelections);
-          setUserPerks(userSelections.perks || []);
-          setError(null);
-          
-          // Reset team form display
-          setShowTeamForm(false);
-        } catch (err) {
-          console.error(`Failed to fetch team selections for user ${selectedUser.userId}:`, err);
-          setError('Failed to load team selections. Please try again later.');
-          setTeamSelections([]);
-        } finally {
-          setLoadingTeams(false);
-        }
-      };
-
-      fetchTeamSelections();
+      setLoadingTeams(true);
+      // Reset team form display when user or sport changes
+      setShowTeamForm(false);
+      
+      // Small delay to ensure loading indicator shows
+      const timer = setTimeout(() => {
+        setLoadingTeams(false);
+        setError(null);
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [selectedUser, selectedSport]);
 
@@ -124,38 +98,6 @@ const Admin: React.FC = () => {
     setSelectedSport(event.target.value as SportType);
   };
   
-  const handleTeamFormSave = (teams: TeamSelection[], updatedPerks?: UserPerkSelection[]) => {
-    // Add sport field to each team if not present
-    const teamsWithSport = teams.map(team => ({
-      ...team,
-      sport: team.sport || selectedSport
-    }));
-    
-    // Use updated perks if provided, otherwise use existing ones
-    const perksToSave = updatedPerks || userPerks;
-    
-    updateUserTeamSelections(selectedUser!.userId, teamsWithSport, perksToSave)
-      .then((result) => {
-        setSaveSuccess(true);
-        setTeamSelections(teamsWithSport);
-        
-        // Update perks if they were returned
-        if (result.perks) {
-          setUserPerks(result.perks);
-        }
-        
-        setShowTeamForm(false);
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSaveSuccess(false);
-        }, 3000);
-      })
-      .catch(error => {
-        console.error('Failed to save team selections:', error);
-        setError('Failed to save changes. Please try again.');
-      });
-  };
 
 
   const handleSignOut = async () => {
@@ -230,7 +172,6 @@ const Admin: React.FC = () => {
 
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {saveSuccess && <Alert severity="success" sx={{ mb: 2 }}>Changes saved successfully!</Alert>}
         
         <Box sx={{ mb: 3 }}>
           <Tabs
@@ -334,15 +275,12 @@ const Admin: React.FC = () => {
                     <CircularProgress />
                   </Box>
                 ) : (
-                  // Always show the team selection form in view/edit mode
+                  // Let TeamSelectionForm handle all data fetching and processing
                   <TeamSelectionForm 
                     sport={selectedSport}
-                    initialTeams={teamSelections.filter(team => !team.sport || team.sport === selectedSport)}
-                    initialPerks={userPerks.filter(perk => perk.sportType === selectedSport)}
                     userId={selectedUser.userId}
                     isAdmin={true}
                     readOnly={!showTeamForm}
-                    onSave={handleTeamFormSave}
                   />
                 )}
               </>

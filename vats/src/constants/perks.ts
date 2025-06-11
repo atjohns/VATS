@@ -153,7 +153,7 @@ export const AVAILABLE_PERKS: Perk[] = [
   {
     id: 'shield',
     title: 'Meat Shield',
-    description: 'Select a top-half seed on your roster (6th or higher in CFP, 8th or higher in CBB, 2nd or higher in baseball). This team can score no points but will block up to one poisons/bullets/blasts from your opponents.',
+    description: 'Select a top-half seed on your roster (6th or higher in CFP, 8th or higher in CBB, 2nd or higher in baseball). This team can score no points but will block up to two poisons/bullets/blasts from your opponents.',
     image: MeatShield,
     usageCount: 0,
     maxUses: 2,

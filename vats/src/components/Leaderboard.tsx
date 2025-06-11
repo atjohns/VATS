@@ -115,7 +115,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
               <TableRow>
                 <TableCell>Rank</TableCell>
                 <TableCell>User</TableCell>
-                <TableCell align="right">Total Points</TableCell>
+                <TableCell align="right">Team Points</TableCell>
+                <TableCell align="right">Perks Adj</TableCell>
+                <TableCell align="right">Total</TableCell>
                 <TableCell>Teams</TableCell>
               </TableRow>
             </TableHead>
@@ -145,6 +147,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
                           )}
                         </Typography>
                       </Box>
+                    </TableCell>
+                    <TableCell align="right">
+                      {/* Calculate team points (total minus perk adjustment) */}
+                      <Typography variant="body2">
+                        {userScore.totalPoints - (userScore.perkAdjustment || 0)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      {/* Show perk adjustment with color based on positive/negative */}
+                      <Typography 
+                        variant="body2" 
+                        color={userScore.perkAdjustment ? (userScore.perkAdjustment > 0 ? 'success.main' : userScore.perkAdjustment < 0 ? 'error.main' : 'text.primary') : 'text.primary'}
+                      >
+                        {userScore.perkAdjustment ? (userScore.perkAdjustment > 0 ? '+' : '') + userScore.perkAdjustment : '0'}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="bold">
@@ -185,6 +202,37 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
                                     <TableCell align="right">{team.totalPoints || (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</TableCell>
                                   </TableRow>
                                 ))}
+                                {/* Always show perk adjustments row with appropriate styling */}
+                                <TableRow sx={{
+                                  bgcolor: userScore.perkAdjustment ? 'rgba(0, 0, 0, 0.04)' : 'inherit',
+                                  fontStyle: 'italic'
+                                }}>
+                                  <TableCell><i>Perk Adjustments</i></TableCell>
+                                  <TableCell align="right">-</TableCell>
+                                  <TableCell align="right">-</TableCell>
+                                  <TableCell align="right">
+                                    <Typography
+                                      component="span"
+                                      color={userScore.perkAdjustment ? (userScore.perkAdjustment > 0 ? 'success.main' : userScore.perkAdjustment < 0 ? 'error.main' : 'text.secondary') : 'text.secondary'}
+                                      fontWeight="bold"
+                                    >
+                                      {userScore.perkAdjustment ? (userScore.perkAdjustment > 0 ? '+' : '') + userScore.perkAdjustment : '0'}
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                                {/* Add a total row */}
+                                <TableRow sx={{ fontWeight: 'bold', bgcolor: 'rgba(25, 118, 210, 0.08)' }}>
+                                  <TableCell><b>TOTAL</b></TableCell>
+                                  <TableCell align="right">
+                                    {userScore.teams.reduce((sum, team) => sum + (team.regularSeasonPoints || 0), 0)}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    {userScore.teams.reduce((sum, team) => sum + (team.postseasonPoints || 0), 0)}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <b>{userScore.totalPoints}</b>
+                                  </TableCell>
+                                </TableRow>
                               </TableBody>
                             </Table>
                           </TableContainer>
