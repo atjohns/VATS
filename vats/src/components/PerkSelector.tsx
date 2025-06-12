@@ -33,7 +33,7 @@ import {
   canSelectPerk
 } from '../constants/perks';
 import { SportType } from '../constants/sports';
-import { FBSTeam, fbsTeams } from '../fbs-teams';
+import { D1Teams, d1Teams } from '../constants/d1teams';
 import { User, getAllUsers, formatUserDisplayName } from '../services/userService';
 
 interface PerkSelectorProps {
@@ -42,7 +42,7 @@ interface PerkSelectorProps {
   onPerkSelect: (perk: UserPerkSelection) => void;
   onPerkRemove: (perkId: string) => void;
   allUserPerks?: UserPerkSelection[]; // All perks across sports
-  availableTeams?: FBSTeam[];  // Teams that can be selected for team inputs
+  availableTeams?: D1Teams[];  // Teams that can be selected for team inputs
   edit: boolean;
 }
 
@@ -220,7 +220,7 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                 >
                   <Autocomplete
                     id={`team-input-${index}`}
-                    options={availableTeams.length > 0 ? availableTeams : fbsTeams}
+                    options={availableTeams.length > 0 ? availableTeams : d1Teams}
                     getOptionLabel={(option) => `${option.schoolName}`}
                     value={inputValues[input.type] || null}
                     onChange={(_, newValue) => handleInputChange(input.type, newValue)}
@@ -247,7 +247,7 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                 >
                   <Autocomplete
                     id={`opponent-input-${index}`}
-                    options={fbsTeams.filter(team => !availableTeams.some(selectedTeam => selectedTeam.id === team.id))}
+                    options={d1Teams.filter(team => !availableTeams.some(selectedTeam => selectedTeam.schoolName === team.schoolName))}
                     getOptionLabel={(option) => `${option.schoolName}`}
                     value={inputValues[input.type] || null}
                     onChange={(_, newValue) => handleInputChange(input.type, newValue)}

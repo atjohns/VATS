@@ -70,7 +70,7 @@ async function getLeaderboard(sport = 'football') {
       
       // Get this user's team selections
       const teamSelections = (item.teamSelections || [])
-        .filter(t => !t.sport || t.sport === sport)
+        .filter(t => t.sport === sport)
         .map(team => {
           if (!team || !team.id) {
             console.log(`Invalid team selection found for user ${item.userId}:`, team);

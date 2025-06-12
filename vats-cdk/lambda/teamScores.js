@@ -3,7 +3,6 @@ const {
   PutCommand, 
   ScanCommand 
 } = require('@aws-sdk/lib-dynamodb');
-const { fbsTeamsMap } = require('./fbsTeamsData');
 const { dynamodb, createCorsResponse } = require('./utils');
 
 /**
@@ -50,11 +49,10 @@ async function getTeamScore(teamId, sport) {
   
   if (!result.Item) {
     // Return default zero scores if not found
-    const teamDetails = fbsTeamsMap[teamId] || {};
     return createCorsResponse(200, { 
       teamId,
-      schoolName: teamDetails.schoolName || teamId,
-      conference: teamDetails.conference || "",
+      schoolName: schoolName || teamId,
+      conference: conference || "",
       sport: sport || "football",
       regularSeasonPoints: 0,
       postseasonPoints: 0,

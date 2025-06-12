@@ -4,7 +4,7 @@
 
 export enum SportType {
   FOOTBALL = 'football',
-  //MENS_BASKETBALL = 'mensbball'
+  MENS_BASKETBALL = 'mensbball'
 }
 
 export interface SportDefinition {
@@ -19,11 +19,11 @@ export const SPORTS: Record<SportType, SportDefinition> = {
     displayName: 'College Football',
     maxTeams: 8
   },
-  /*[SportType.MENS_BASKETBALL]: {
+  [SportType.MENS_BASKETBALL]: {
     id: SportType.MENS_BASKETBALL,
     displayName: 'Men\'s Basketball',
     maxTeams: 8
-  }*/
+  }
 };
 
 // Array of all sports for iteration
@@ -52,8 +52,8 @@ export const SLOT_LABELS: Record<SportType, string[]> = {
     'Non-P4', 
     'Non-P4'
   ],
-  /*[SportType.MENS_BASKETBALL]: [
-    ''Ride or Die Team',
+  [SportType.MENS_BASKETBALL]: [
+    'Ride or Die Team',
     'SEC',
     'ACC',
     'Big Ten',
@@ -61,7 +61,7 @@ export const SLOT_LABELS: Record<SportType, string[]> = {
     'Wild Card',
     'Non-P4', 
     'Non-P4'
-  ]*/
+  ]
 };
 
 // Default sport

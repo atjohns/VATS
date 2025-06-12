@@ -4,7 +4,7 @@ const {
   UpdateCommand,
   ScanCommand
 } = require('@aws-sdk/lib-dynamodb');
-const { fbsTeamsMap } = require('./fbsTeamsData');
+// No longer need team data mapping as we save full data directly
 const { dynamodb, createCorsResponse } = require('./utils');
 
 /**
@@ -33,15 +33,16 @@ async function getTeamSelections(userId) {
   const perks = result.Item.perks || [];
   const perkAdjustments = result.Item.perkAdjustments || {};
   
-  // Reconstruct full team data
-  const minimalTeamData = result.Item.teamSelections || [];
-  const fullTeamData = minimalTeamData.map(team => {
-    const teamDetails = fbsTeamsMap[team.schoolName] || {};
+  // Get team data directly without reconstruction
+  const teamData = result.Item.teamSelections || [];
+  
+  // Just calculate total points for each team and make sure all fields are present
+  const fullTeamData = teamData.map(team => {
     return {
       id: team.id,
       schoolName: team.schoolName,
-      conference: team.conference || teamDetails.conference || "Unknown",
-      sport: team.sport || "football", // Default to football for backward compatibility
+      conference: team.conference,
+      sport: team.sport,
       regularSeasonPoints: team.regularSeasonPoints || 0,
       postseasonPoints: team.postseasonPoints || 0,
       totalPoints: (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)
@@ -49,7 +50,7 @@ async function getTeamSelections(userId) {
   });
   
   // Separate selections by sport
-  const footballSelections = fullTeamData.filter(team => team.sport === "football" || !team.sport);
+  const footballSelections = fullTeamData.filter(team => team.sport === "football");
   const mensbballSelections = fullTeamData.filter(team => team.sport === "mensbball");
   
   // Return with sport-specific arrays
@@ -92,12 +93,16 @@ async function updateTeamSelections(event, userId) {
   var teamSelections;
   var perks = parsedBody.perks || [];
   var perkAdjustments = parsedBody.perkAdjustments || {};
+  var sport; // Declare sport variable
+  
   if (parsedBody.footballSelections) {
     teamSelections = parsedBody.footballSelections;
     sport = "football";
+    console.log('Processing football selections');
   } else if (parsedBody.mensbballSelections) {
     teamSelections = parsedBody.mensbballSelections;
     sport = "mensbball";
+    console.log('Processing mens basketball selections');
   }
   
   console.log('Received perks:', perks);
@@ -204,12 +209,21 @@ async function updateTeamSelections(event, userId) {
     };
   } else {
     // Update existing record
+    // First, get the existing team selections to merge with the new ones
+    const existingTeamSelections = existingRecord.Item.teamSelections || [];
+    
+    // Filter out teams of the current sport and keep teams from other sports
+    const otherSportSelections = existingTeamSelections.filter(team => team.sport !== sport);
+    
+    // Merge the teams from other sports with the new team selections
+    const mergedTeamSelections = [...otherSportSelections, ...minimalTeamData];
+    
     const updateParams = {
       TableName: process.env.TEAM_SELECTIONS_TABLE,
       Key: { userId },
       UpdateExpression: 'SET teamSelections = :teamSelections, perks = :perks, perkAdjustments = :perkAdjustments, updatedAt = :updatedAt',
       ExpressionAttributeValues: {
-        ':teamSelections': minimalTeamData,
+        ':teamSelections': mergedTeamSelections,
         ':perks': perks, // Update perks in the database
         ':perkAdjustments': perkAdjustments, // Update perk adjustments in the database
         ':updatedAt': timestamp
@@ -217,7 +231,7 @@ async function updateTeamSelections(event, userId) {
       ReturnValues: 'ALL_NEW'
     };
     
-    console.log('Saving team selections with preserved point data:', minimalTeamData);
+    console.log('Merging and saving team selections with preserved point data:', mergedTeamSelections);
     
     const updateCommand = new UpdateCommand(updateParams);
     const updateResult = await dynamodb.send(updateCommand);
@@ -231,14 +245,13 @@ async function updateTeamSelections(event, userId) {
     const allTeamsResult = await dynamodb.send(getAllTeams);
     const allTeamSelections = allTeamsResult.Item?.teamSelections || [];
     
-    // Reconstruct full team data for all teams
+    // Process team data to ensure all fields are present and calculate totals
     const allFullTeamData = allTeamSelections.map(team => {
-      const teamDetails = fbsTeamsMap[team.schoolName] || {};
       return {
         id: team.id,
         schoolName: team.schoolName,
-        conference: team.conference || teamDetails.conference || "Unknown",
-        sport: team.sport || "football", // Default to football for backward compatibility
+        conference: team.conference,
+        sport: team.sport,
         regularSeasonPoints: team.regularSeasonPoints || 0,
         postseasonPoints: team.postseasonPoints || 0,
         totalPoints: (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)
@@ -246,7 +259,7 @@ async function updateTeamSelections(event, userId) {
     });
     
     // Separate by sport
-    const footballSelections = allFullTeamData.filter(team => team.sport === "football" || !team.sport);
+    const footballSelections = allFullTeamData.filter(team => team.sport === "football");
     const mensbballSelections = allFullTeamData.filter(team => team.sport === "mensbball");
     
     // Return the full team details with sport-specific arrays
@@ -287,15 +300,13 @@ async function getAllTeamSelections(sport) {
     if (teamSelections && Array.isArray(teamSelections)) {
       teamSelections.forEach(team => {
         // Filter by sport and use schoolName as unique identifier
-        if (team.schoolName && (!team.sport || team.sport === sport)) {
-          // Add team details from our static map
-          const teamDetails = fbsTeamsMap[team.schoolName] || {};
+        if (team.schoolName && team.sport === sport) {
           const enhancedTeam = {
             id: team.id,
             teamId: team.id, // For consistency with TeamScore interface
             schoolName: team.schoolName,
-            conference: team.conference || teamDetails.conference || "Unknown",
-            sport: team.sport || sport || "football",
+            conference: team.conference,
+            sport: team.sport,
             regularSeasonPoints: team.regularSeasonPoints || 0,
             postseasonPoints: team.postseasonPoints || 0,
             totalPoints: (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)

@@ -18,7 +18,7 @@ import { getTeamSelections, updateTeamSelections, TeamSelection } from '../servi
 import { UserPerkSelection } from '../constants/perks';
 import PerkSelector from './PerkSelector';
 import { useAuth } from '../contexts/AuthContext';
-import { fbsTeams, FBSTeam } from '../fbs-teams';
+import { d1Teams, D1Teams } from '../constants/d1teams';
 import { SportType, SPORTS, DEFAULT_SPORT, SLOT_LABELS as SPORT_SLOT_LABELS } from '../constants/sports';
 
 // MAX_TEAMS is now dynamically set from sportConfig.maxTeams
@@ -147,8 +147,9 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         if (sport === SportType.FOOTBALL && Array.isArray(userSelections.footballSelections)) {
           teamSelectionsArray = userSelections.footballSelections;
           setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
-        //} else if (sport === SportType.FOOTBALL && Array.isArray(userSelections.mensbballSelections)) {
-        //  teamSelectionsArray = userSelections.mensbballSelections;
+        } else if (sport === SportType.MENS_BASKETBALL && Array.isArray(userSelections.mensbballSelections)) {
+          teamSelectionsArray = userSelections.mensbballSelections;
+          setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
         } else if (Array.isArray(userSelections.teamSelections)) {
           // Legacy format - filter by sport
           teamSelectionsArray = userSelections.teamSelections.filter(
@@ -211,7 +212,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
     }
   }, [selectedTeams, hasExistingSelections, editMode]);
 
-  const handleTeamChange = (index: number, newValue: FBSTeam | null) => {
+  const handleTeamChange = (index: number, newValue: D1Teams | null) => {
     const newTeams = [...selectedTeams];
     
     // Check if this team is already selected in another slot
@@ -372,11 +373,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                     if (!team) return null;
                     
                     // Extract team properties with fallbacks
-                    const { id, schoolName = 'Unknown School', conference = '' } = team;
+                    const { schoolName = 'Unknown School', conference = '' } = team;
                     
                     return (
                       <Paper 
-                        key={id || `team-${index}`}
+                        key={`team-${index}`}
                         elevation={1} 
                         sx={{ p: 2, width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33% - 16px)' } }}
                       >
@@ -415,12 +416,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
           allUserPerks={allSportsPerks}
           availableTeams={selectedTeams.filter((team): team is TeamSelection => team !== null)
             .map(team => ({
-              id: team.id || '',
+              id: team.id,
               schoolName: team.schoolName,
-              teamName: '', // TeamSelection doesn't have teamName
-              location: '', // TeamSelection doesn't have location
-              conference: team.conference || ''
-            })) as FBSTeam[]}
+              conference: team.conference || '',
+              fbs: true
+            })) as D1Teams[]}
           edit={false}
         />
       </Box>
@@ -468,33 +468,50 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
             const getFilteredTeams = () => {
               const p4Conferences = ["SEC", "ACC", "Big Ten", "Big 12"];
               
+              // First filter by sport
+              const sportTeams = d1Teams.filter(team => {
+                // For football, only show FBS teams
+                if (sport === SportType.FOOTBALL) {
+                  return team.fbs === true;
+                } 
+                // For basketball, show all teams
+                else {
+                  return true;
+                }
+              });
+              
               // Ride or Die (index 0) and Wild Card (index 5) - allow any team
               if (index === 0 || index === 5) {
-                return fbsTeams;
+                return sportTeams;
               }
               // SEC (index 1)
               else if (index === 1) {
-                return fbsTeams.filter(team => team.conference === "SEC");
+                return sportTeams.filter(team => team.conference === "SEC" || team.conference === "Southeastern Conference");
               }
               // ACC (index 2)
               else if (index === 2) {
-                return fbsTeams.filter(team => team.conference === "ACC");
+                return sportTeams.filter(team => team.conference === "ACC" || team.conference === "Atlantic Coast Conference");
               }
               // Big Ten (index 3)
               else if (index === 3) {
-                return fbsTeams.filter(team => team.conference === "Big Ten");
+                return sportTeams.filter(team => team.conference === "Big Ten" || team.conference === "Big Ten Conference");
               }
               // Big 12 (index 4)
               else if (index === 4) {
-                return fbsTeams.filter(team => team.conference === "Big 12");
+                return sportTeams.filter(team => team.conference === "Big 12" || team.conference === "Big 12 Conference");
               }
               // Non-P4 (index 6 and 7) - exclude P4 conferences
               else if (index === 6 || index === 7) {
-                return fbsTeams.filter(team => !p4Conferences.includes(team.conference));
+                return sportTeams.filter(team => 
+                  !p4Conferences.includes(team.conference) && 
+                  team.conference !== "Southeastern Conference" &&
+                  team.conference !== "Atlantic Coast Conference" &&
+                  team.conference !== "Big Ten Conference" &&
+                  team.conference !== "Big 12 Conference");
               }
               
               // Default case (shouldn't reach here)
-              return fbsTeams;
+              return sportTeams;
             };
             
             return (
@@ -504,7 +521,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                 </Typography>
                 <Autocomplete
                   id={`team-select-${index}`}
-                  value={selectedTeams[index] as FBSTeam | null}
+                  value={selectedTeams[index] as D1Teams | null}
                   onChange={(_, newValue) => handleTeamChange(index, newValue)}
                   options={getFilteredTeams()}
                   getOptionLabel={(option) => `${option.schoolName}`}
@@ -516,7 +533,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                   )}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderOption={(props, option) => (
-                    <li {...props} key={option.id}>
+                    <li {...props} key={option.schoolName}>
                       <Box>
                         <Typography variant="body2">
                           <strong>{option.schoolName}</strong>
@@ -545,12 +562,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
           allUserPerks={allSportsPerks}
           availableTeams={selectedTeams.filter((team): team is TeamSelection => team !== null)
             .map(team => ({
-              id: team.id || '',
+              id: team.id,
               schoolName: team.schoolName,
-              teamName: '', // TeamSelection doesn't have teamName
-              location: '', // TeamSelection doesn't have location
-              conference: team.conference || ''
-            })) as FBSTeam[]}
+              conference: team.conference || '',
+              fbs: true
+            })) as D1Teams[]}
           edit={true}
         />
 
