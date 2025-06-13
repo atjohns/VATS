@@ -25,6 +25,9 @@ import { useNavigate } from 'react-router-dom';
 import vatsLogo from '../assets/vats.png';
 import { SportType, ALL_SPORTS } from '../constants/sports';
 
+// Define Overall as a special type
+const OVERALL = 'overall';
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -55,7 +58,7 @@ const Home: React.FC = () => {
   // Main tab index: sports (0, 1, ...) or leaderboard (ALL_SPORTS.length)
   const [tabIndex, setTabIndex] = useState(0);
   // Selected sport for the leaderboard
-  const [selectedLeaderboardSport, setSelectedLeaderboardSport] = useState<SportType>(ALL_SPORTS[0].id);
+  const [selectedLeaderboardSport, setSelectedLeaderboardSport] = useState<string>(OVERALL);
   const [signingOut, setSigningOut] = useState(false);
   const { user, signOut, isLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -183,6 +186,9 @@ const Home: React.FC = () => {
                   label="Sport"
                   onChange={handleLeaderboardSportChange}
                 >
+                  <MenuItem value={OVERALL}>
+                    Overall
+                  </MenuItem>
                   {ALL_SPORTS.map(sport => (
                     <MenuItem key={sport.id} value={sport.id}>
                       {sport.displayName}

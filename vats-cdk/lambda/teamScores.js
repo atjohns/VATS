@@ -97,7 +97,16 @@ async function updateTeamScores(event) {
       ...(team.bowlWin !== undefined && { bowlWin: team.bowlWin }),
       ...(team.cfpWins !== undefined && { cfpWins: team.cfpWins }),
       ...(team.cfpSemiFinalWin !== undefined && { cfpSemiFinalWin: team.cfpSemiFinalWin }),
-      ...(team.cfpChampion !== undefined && { cfpChampion: team.cfpChampion })
+      ...(team.cfpChampion !== undefined && { cfpChampion: team.cfpChampion }),
+      // Log men's basketball-specific fields if present
+      ...(team.mbbRegularSeasonWins !== undefined && { mbbRegularSeasonWins: team.mbbRegularSeasonWins }),
+      ...(team.mbbRegularSeasonTitle !== undefined && { mbbRegularSeasonTitle: team.mbbRegularSeasonTitle }),
+      ...(team.mbbConferenceTournTitle !== undefined && { mbbConferenceTournTitle: team.mbbConferenceTournTitle }),
+      ...(team.mbbNCAAAppearance !== undefined && { mbbNCAAAppearance: team.mbbNCAAAppearance }),
+      ...(team.mbbNCAAWins !== undefined && { mbbNCAAWins: team.mbbNCAAWins }),
+      ...(team.mbbEliteEightWin !== undefined && { mbbEliteEightWin: team.mbbEliteEightWin }),
+      ...(team.mbbFinalFourWin !== undefined && { mbbFinalFourWin: team.mbbFinalFourWin }),
+      ...(team.mbbChampion !== undefined && { mbbChampion: team.mbbChampion })
     });
   });
   
@@ -155,6 +164,15 @@ async function updateTeamScores(event) {
           cfpWins: team.cfpWins,
           cfpSemiFinalWin: team.cfpSemiFinalWin,
           cfpChampion: team.cfpChampion,
+          // Store men's basketball specific scoring fields if provided
+          mbbRegularSeasonWins: team.mbbRegularSeasonWins,
+          mbbRegularSeasonTitle: team.mbbRegularSeasonTitle,
+          mbbConferenceTournTitle: team.mbbConferenceTournTitle,
+          mbbNCAAAppearance: team.mbbNCAAAppearance,
+          mbbNCAAWins: team.mbbNCAAWins,
+          mbbEliteEightWin: team.mbbEliteEightWin,
+          mbbFinalFourWin: team.mbbFinalFourWin,
+          mbbChampion: team.mbbChampion,
           // Store any other fields provided
           totalPoints: team.totalPoints || (team.regularSeasonPoints || 0) + (team.postseasonPoints || 0),
           createdAt: timestamp,
@@ -189,6 +207,15 @@ async function updateTeamScores(event) {
           cfpWins: team.cfpWins !== undefined ? team.cfpWins : existingRecord.Item.cfpWins,
           cfpSemiFinalWin: team.cfpSemiFinalWin !== undefined ? team.cfpSemiFinalWin : existingRecord.Item.cfpSemiFinalWin,
           cfpChampion: team.cfpChampion !== undefined ? team.cfpChampion : existingRecord.Item.cfpChampion,
+          // Update men's basketball specific scoring fields if provided
+          mbbRegularSeasonWins: team.mbbRegularSeasonWins !== undefined ? team.mbbRegularSeasonWins : existingRecord.Item.mbbRegularSeasonWins,
+          mbbRegularSeasonTitle: team.mbbRegularSeasonTitle !== undefined ? team.mbbRegularSeasonTitle : existingRecord.Item.mbbRegularSeasonTitle,
+          mbbConferenceTournTitle: team.mbbConferenceTournTitle !== undefined ? team.mbbConferenceTournTitle : existingRecord.Item.mbbConferenceTournTitle,
+          mbbNCAAAppearance: team.mbbNCAAAppearance !== undefined ? team.mbbNCAAAppearance : existingRecord.Item.mbbNCAAAppearance,
+          mbbNCAAWins: team.mbbNCAAWins !== undefined ? team.mbbNCAAWins : existingRecord.Item.mbbNCAAWins,
+          mbbEliteEightWin: team.mbbEliteEightWin !== undefined ? team.mbbEliteEightWin : existingRecord.Item.mbbEliteEightWin,
+          mbbFinalFourWin: team.mbbFinalFourWin !== undefined ? team.mbbFinalFourWin : existingRecord.Item.mbbFinalFourWin,
+          mbbChampion: team.mbbChampion !== undefined ? team.mbbChampion : existingRecord.Item.mbbChampion,
           // Update total points
           totalPoints: team.totalPoints || (team.regularSeasonPoints || existingRecord.Item.regularSeasonPoints || 0) + (team.postseasonPoints || existingRecord.Item.postseasonPoints || 0),
           updatedAt: timestamp

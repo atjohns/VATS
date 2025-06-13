@@ -28,7 +28,7 @@ import { SportType, ALL_SPORTS } from '../constants/sports';
 import { getTeamScores, updateTeamScores, TeamScore } from '../services/teamScores';
 import { getAllTeamSelections, TeamSelection } from '../services/api';
 
-// Enhanced type that combines TeamScore and TeamSelection with football scoring fields
+// Enhanced type that combines TeamScore and TeamSelection with sport-specific scoring fields
 interface EnhancedTeamScore extends Partial<TeamSelection>, Partial<TeamScore> {
   teamId: string;
   schoolName: string;
@@ -46,6 +46,44 @@ interface EnhancedTeamScore extends Partial<TeamSelection>, Partial<TeamScore> {
   cfpWins?: number;
   cfpSemiFinalWin?: boolean;
   cfpChampion?: boolean;
+  
+  // Men's Basketball specific scoring fields
+  mbbRegularSeasonWins?: number;
+  mbbRegularSeasonTitle?: boolean;
+  mbbConferenceTournTitle?: boolean;
+  mbbNCAAAppearance?: boolean;
+  mbbNCAAWins?: number;
+  mbbEliteEightWin?: boolean;
+  mbbFinalFourWin?: boolean;
+  mbbChampion?: boolean;
+  
+  // Women's Basketball specific scoring fields
+  wbbRegularSeasonWins?: number;
+  wbbRegularSeasonTitle?: boolean;
+  wbbConferenceTournTitle?: boolean;
+  wbbNCAAAppearance?: boolean;
+  wbbNCAAWins?: number;
+  wbbEliteEightWin?: boolean;
+  wbbFinalFourWin?: boolean;
+  wbbChampion?: boolean;
+  
+  // Baseball specific scoring fields
+  baseRegularSeasonWins?: number;
+  baseRegularSeasonTitle?: boolean;
+  baseConferenceTournTitle?: boolean;
+  baseNCAAAppearance?: boolean;
+  baseRegionalWins?: number;
+  baseCWSWins?: number;
+  baseChampion?: boolean;
+  
+  // Softball specific scoring fields
+  softRegularSeasonWins?: number;
+  softRegularSeasonTitle?: boolean;
+  softConferenceTournTitle?: boolean;
+  softNCAAAppearance?: boolean;
+  softRegionalWins?: number;
+  softCWSWins?: number;
+  softChampion?: boolean;
 }
 
 interface TeamScoresProps {
@@ -123,8 +161,70 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
               regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
               postseasonPoints: existingScore?.postseasonPoints || 0
             } as EnhancedTeamScore;
+          } else if (selectedSport === SportType.MENS_BASKETBALL) {
+            return {
+              ...baseTeam,
+              // Preserve existing men's basketball specific values or initialize with defaults
+              mbbRegularSeasonWins: existingScore?.mbbRegularSeasonWins || 0,
+              mbbRegularSeasonTitle: existingScore?.mbbRegularSeasonTitle || false,
+              mbbConferenceTournTitle: existingScore?.mbbConferenceTournTitle || false,
+              mbbNCAAAppearance: existingScore?.mbbNCAAAppearance || false,
+              mbbNCAAWins: existingScore?.mbbNCAAWins || 0,
+              mbbEliteEightWin: existingScore?.mbbEliteEightWin || false,
+              mbbFinalFourWin: existingScore?.mbbFinalFourWin || false,
+              mbbChampion: existingScore?.mbbChampion || false,
+              // Set calculated point values
+              regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
+              postseasonPoints: existingScore?.postseasonPoints || 0
+            } as EnhancedTeamScore;
+          } else if (selectedSport === SportType.WOMENS_BASKETBALL) {
+            return {
+              ...baseTeam,
+              // Preserve existing women's basketball specific values or initialize with defaults
+              wbbRegularSeasonWins: existingScore?.wbbRegularSeasonWins || 0,
+              wbbRegularSeasonTitle: existingScore?.wbbRegularSeasonTitle || false,
+              wbbConferenceTournTitle: existingScore?.wbbConferenceTournTitle || false,
+              wbbNCAAAppearance: existingScore?.wbbNCAAAppearance || false,
+              wbbNCAAWins: existingScore?.wbbNCAAWins || 0,
+              wbbEliteEightWin: existingScore?.wbbEliteEightWin || false,
+              wbbFinalFourWin: existingScore?.wbbFinalFourWin || false,
+              wbbChampion: existingScore?.wbbChampion || false,
+              // Set calculated point values
+              regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
+              postseasonPoints: existingScore?.postseasonPoints || 0
+            } as EnhancedTeamScore;
+          } else if (selectedSport === SportType.BASEBALL) {
+            return {
+              ...baseTeam,
+              // Preserve existing baseball specific values or initialize with defaults
+              baseRegularSeasonWins: existingScore?.baseRegularSeasonWins || 0,
+              baseRegularSeasonTitle: existingScore?.baseRegularSeasonTitle || false,
+              baseConferenceTournTitle: existingScore?.baseConferenceTournTitle || false,
+              baseNCAAAppearance: existingScore?.baseNCAAAppearance || false,
+              baseRegionalWins: existingScore?.baseRegionalWins || 0,
+              baseCWSWins: existingScore?.baseCWSWins || 0,
+              baseChampion: existingScore?.baseChampion || false,
+              // Set calculated point values
+              regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
+              postseasonPoints: existingScore?.postseasonPoints || 0
+            } as EnhancedTeamScore;
+          } else if (selectedSport === SportType.SOFTBALL) {
+            return {
+              ...baseTeam,
+              // Preserve existing softball specific values or initialize with defaults
+              softRegularSeasonWins: existingScore?.softRegularSeasonWins || 0,
+              softRegularSeasonTitle: existingScore?.softRegularSeasonTitle || false,
+              softConferenceTournTitle: existingScore?.softConferenceTournTitle || false,
+              softNCAAAppearance: existingScore?.softNCAAAppearance || false,
+              softRegionalWins: existingScore?.softRegionalWins || 0,
+              softCWSWins: existingScore?.softCWSWins || 0,
+              softChampion: existingScore?.softChampion || false,
+              // Set calculated point values
+              regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
+              postseasonPoints: existingScore?.postseasonPoints || 0
+            } as EnhancedTeamScore;
           } else {
-            // For non-football sports, use the simple points model
+            // For other sports, use the simple points model
             return {
               ...baseTeam,
               regularSeasonPoints: existingScore?.regularSeasonPoints || 0,
@@ -152,43 +252,145 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
     setSelectedSport(event.target.value as SportType);
   };
 
-  // Calculate football scores based on the rules
-  const calculateFootballScores = (team: EnhancedTeamScore): { regularSeasonPoints: number, postseasonPoints: number } => {
-    // Skip calculation for non-football sports
-    if (team.sport !== SportType.FOOTBALL) {
+  // Calculate sport-specific scores based on the rules
+  const calculateTeamScores = (team: EnhancedTeamScore): { regularSeasonPoints: number, postseasonPoints: number } => {
+    // Handle football scoring rules
+    if (team.sport === SportType.FOOTBALL) {
+      // Calculate regular season points
+      // 5 per regular season win
+      // 10 regular season title
+      const regularSeasonPoints = 
+        (team.regularSeasonWins || 0) * 5 + 
+        (team.regularSeasonChampion ? 10 : 0);
+      
+      // Calculate postseason points
+      // 10 conference championship title
+      // 5 CFP appearance
+      // 5 bowl win
+      // 15 per CFP win
+      // 20 CFP semi final win
+      // 30 title game winner
+      const postseasonPoints = 
+        (team.conferenceChampion ? 10 : 0) +
+        (team.cfpAppearance ? 5 : 0) +
+        (team.bowlWin ? 5 : 0) +
+        (team.cfpWins || 0) * 15 +
+        (team.cfpSemiFinalWin ? 20 : 0) +
+        (team.cfpChampion ? 30 : 0);
+        
+      return { regularSeasonPoints, postseasonPoints };
+    }
+    // Handle men's basketball scoring rules
+    else if (team.sport === SportType.MENS_BASKETBALL) {
+      // Calculate regular season points
+      // 3 per regular season win
+      // 10 regular season title
+      const regularSeasonPoints = 
+        (team.mbbRegularSeasonWins || 0) * 3 + 
+        (team.mbbRegularSeasonTitle ? 10 : 0);
+      
+      // Calculate postseason points
+      // 10 conference tournament title
+      // 5 NCAA Tournament appearance
+      // 5 per NCAA Tournament win
+      // 10 Elite Eight win
+      // 20 Final Four win
+      // 30 National Champion
+      const postseasonPoints = 
+        (team.mbbConferenceTournTitle ? 10 : 0) +
+        (team.mbbNCAAAppearance ? 5 : 0) +
+        (team.mbbNCAAWins || 0) * 5 +
+        (team.mbbEliteEightWin ? 10 : 0) +
+        (team.mbbFinalFourWin ? 20 : 0) +
+        (team.mbbChampion ? 30 : 0);
+        
+      return { regularSeasonPoints, postseasonPoints };
+    }
+    // Handle women's basketball scoring rules - same as men's
+    else if (team.sport === SportType.WOMENS_BASKETBALL) {
+      // Calculate regular season points
+      // 3 per regular season win
+      // 10 regular season title
+      const regularSeasonPoints = 
+        (team.wbbRegularSeasonWins || 0) * 3 + 
+        (team.wbbRegularSeasonTitle ? 10 : 0);
+      
+      // Calculate postseason points
+      // 10 conference tournament title
+      // 5 NCAA Tournament appearance
+      // 5 per NCAA Tournament win
+      // 10 Elite Eight win
+      // 20 Final Four win
+      // 30 National Champion
+      const postseasonPoints = 
+        (team.wbbConferenceTournTitle ? 10 : 0) +
+        (team.wbbNCAAAppearance ? 5 : 0) +
+        (team.wbbNCAAWins || 0) * 5 +
+        (team.wbbEliteEightWin ? 10 : 0) +
+        (team.wbbFinalFourWin ? 20 : 0) +
+        (team.wbbChampion ? 30 : 0);
+        
+      return { regularSeasonPoints, postseasonPoints };
+    }
+    // Handle baseball scoring rules
+    else if (team.sport === SportType.BASEBALL) {
+      // Calculate regular season points
+      // 1 per regular season win
+      // 10 regular season title
+      const regularSeasonPoints = 
+        (team.baseRegularSeasonWins || 0) * 1 + 
+        (team.baseRegularSeasonTitle ? 10 : 0);
+      
+      // Calculate postseason points
+      // 10 conference tournament title
+      // 5 NCAA Tournament appearance
+      // 5 per Regional/Super Regional win
+      // 10 per College World Series win
+      // 30 National Champion
+      const postseasonPoints = 
+        (team.baseConferenceTournTitle ? 10 : 0) +
+        (team.baseNCAAAppearance ? 5 : 0) +
+        (team.baseRegionalWins || 0) * 5 +
+        (team.baseCWSWins || 0) * 10 +
+        (team.baseChampion ? 30 : 0);
+        
+      return { regularSeasonPoints, postseasonPoints };
+    }
+    // Handle softball scoring rules - same as baseball
+    else if (team.sport === SportType.SOFTBALL) {
+      // Calculate regular season points
+      // 1 per regular season win
+      // 10 regular season title
+      const regularSeasonPoints = 
+        (team.softRegularSeasonWins || 0) * 1 + 
+        (team.softRegularSeasonTitle ? 10 : 0);
+      
+      // Calculate postseason points
+      // 10 conference tournament title
+      // 5 NCAA Tournament appearance
+      // 5 per Regional/Super Regional win
+      // 10 per Women's College World Series win
+      // 30 National Champion
+      const postseasonPoints = 
+        (team.softConferenceTournTitle ? 10 : 0) +
+        (team.softNCAAAppearance ? 5 : 0) +
+        (team.softRegionalWins || 0) * 5 +
+        (team.softCWSWins || 0) * 10 +
+        (team.softChampion ? 30 : 0);
+        
+      return { regularSeasonPoints, postseasonPoints };
+    }
+    // For other sports, just return existing values
+    else {
       return {
         regularSeasonPoints: team.regularSeasonPoints || 0,
         postseasonPoints: team.postseasonPoints || 0
       };
     }
-    
-    // Calculate regular season points
-    // 5 per regular season win
-    // 10 regular season title
-    const regularSeasonPoints = 
-      (team.regularSeasonWins || 0) * 5 + 
-      (team.regularSeasonChampion ? 10 : 0);
-    
-    // Calculate postseason points
-    // 10 conference championship title
-    // 5 CFP appearance
-    // 5 bowl win
-    // 15 per CFP win
-    // 20 CFP semi final win
-    // 30 title game winner
-    const postseasonPoints = 
-      (team.conferenceChampion ? 10 : 0) +
-      (team.cfpAppearance ? 5 : 0) +
-      (team.bowlWin ? 5 : 0) +
-      (team.cfpWins || 0) * 15 +
-      (team.cfpSemiFinalWin ? 20 : 0) +
-      (team.cfpChampion ? 30 : 0);
-      
-    return { regularSeasonPoints, postseasonPoints };
   };
 
   // Handle numeric field change
-  const handleNumericFieldChange = (teamId: string, field: 'regularSeasonWins' | 'cfpWins', value: string) => {
+  const handleNumericFieldChange = (teamId: string, field: 'regularSeasonWins' | 'cfpWins' | 'mbbRegularSeasonWins' | 'mbbNCAAWins' | 'wbbRegularSeasonWins' | 'wbbNCAAWins' | 'baseRegularSeasonWins' | 'baseRegionalWins' | 'baseCWSWins' | 'softRegularSeasonWins' | 'softRegionalWins' | 'softCWSWins', value: string) => {
     // Ensure value is non-negative
     const numValue = Math.max(Number(value) || 0, 0);
     
@@ -198,7 +400,7 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
         
         const updatedTeam = { ...team, [field]: numValue };
         // Recalculate points based on updated values
-        const { regularSeasonPoints, postseasonPoints } = calculateFootballScores(updatedTeam);
+        const { regularSeasonPoints, postseasonPoints } = calculateTeamScores(updatedTeam);
         
         return {
           ...updatedTeam,
@@ -212,7 +414,11 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
   // Handle checkbox field change
   const handleCheckboxChange = (
     teamId: string, 
-    field: 'regularSeasonChampion' | 'conferenceChampion' | 'cfpAppearance' | 'bowlWin' | 'cfpSemiFinalWin' | 'cfpChampion'
+    field: 'regularSeasonChampion' | 'conferenceChampion' | 'cfpAppearance' | 'bowlWin' | 'cfpSemiFinalWin' | 'cfpChampion' | 
+          'mbbRegularSeasonTitle' | 'mbbConferenceTournTitle' | 'mbbNCAAAppearance' | 'mbbEliteEightWin' | 'mbbFinalFourWin' | 'mbbChampion' |
+          'wbbRegularSeasonTitle' | 'wbbConferenceTournTitle' | 'wbbNCAAAppearance' | 'wbbEliteEightWin' | 'wbbFinalFourWin' | 'wbbChampion' |
+          'baseRegularSeasonTitle' | 'baseConferenceTournTitle' | 'baseNCAAAppearance' | 'baseChampion' |
+          'softRegularSeasonTitle' | 'softConferenceTournTitle' | 'softNCAAAppearance' | 'softChampion'
   ) => {
     setTeamScores(prevScores => 
       prevScores.map(team => {
@@ -220,7 +426,7 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
         
         const updatedTeam = { ...team, [field]: !(team[field] || false) };
         // Recalculate points based on updated values
-        const { regularSeasonPoints, postseasonPoints } = calculateFootballScores(updatedTeam);
+        const { regularSeasonPoints, postseasonPoints } = calculateTeamScores(updatedTeam);
         
         return {
           ...updatedTeam,
@@ -539,6 +745,572 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
                     <Checkbox
                       checked={team.cfpChampion || false}
                       onChange={() => handleCheckboxChange(team.teamId, 'cfpChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* Total Points */}
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                    <Tooltip title="Total: Regular Season + Postseason Points" arrow>
+                      <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : selectedSport === SportType.MENS_BASKETBALL ? (
+        /* Men's Basketball scoring UI */
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  onClick={() => handleSort('schoolName')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
+                >
+                  School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell colSpan={8} align="center">Scoring Rules</TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('total')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
+                >
+                  Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={1}></TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regular Season<br/>Wins<br/>(3 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Reg Season<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Conf Tourn.<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Appearance<br/>(5 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Wins<br/>(5 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Elite Eight<br/>Win<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Final Four<br/>Win<br/>(20 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Champion<br/>(30 pts)
+                </TableCell>
+                <TableCell align="right"></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedTeams.map((team, index) => (
+                <TableRow key={team.teamId} hover>
+                  <TableCell>
+                    {sortField === 'total' && sortDirection === 'desc' && (
+                      <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
+                        {index + 1}.  
+                      </span>
+                    )}
+                    {team.schoolName}
+                  </TableCell>
+                  
+                  {/* Regular Season Wins (3 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.mbbRegularSeasonWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'mbbRegularSeasonWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 40 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Regular Season Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.mbbRegularSeasonTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'mbbRegularSeasonTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* Conference Tournament Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.mbbConferenceTournTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'mbbConferenceTournTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Tournament Appearance (5 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.mbbNCAAAppearance || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'mbbNCAAAppearance')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Tournament Wins (5 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.mbbNCAAWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'mbbNCAAWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 6 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Elite Eight Win (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.mbbEliteEightWin || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'mbbEliteEightWin')}
+                    />
+                  </TableCell>
+                  
+                  {/* Final Four Win (20 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.mbbFinalFourWin || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'mbbFinalFourWin')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Champion (30 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.mbbChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'mbbChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* Total Points */}
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                    <Tooltip title="Total: Regular Season + Postseason Points" arrow>
+                      <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : selectedSport === SportType.WOMENS_BASKETBALL ? (
+        /* Women's Basketball scoring UI */
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  onClick={() => handleSort('schoolName')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
+                >
+                  School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell colSpan={8} align="center">Scoring Rules</TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('total')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
+                >
+                  Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={1}></TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regular Season<br/>Wins<br/>(3 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Reg Season<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Conf Tourn.<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Appearance<br/>(5 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Wins<br/>(5 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Elite Eight<br/>Win<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Final Four<br/>Win<br/>(20 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Champion<br/>(30 pts)
+                </TableCell>
+                <TableCell align="right"></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedTeams.map((team, index) => (
+                <TableRow key={team.teamId} hover>
+                  <TableCell>
+                    {sortField === 'total' && sortDirection === 'desc' && (
+                      <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
+                        {index + 1}.  
+                      </span>
+                    )}
+                    {team.schoolName}
+                  </TableCell>
+                  
+                  {/* Regular Season Wins (3 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.wbbRegularSeasonWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'wbbRegularSeasonWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 40 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Regular Season Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.wbbRegularSeasonTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'wbbRegularSeasonTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* Conference Tournament Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.wbbConferenceTournTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'wbbConferenceTournTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Tournament Appearance (5 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.wbbNCAAAppearance || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'wbbNCAAAppearance')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Tournament Wins (5 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.wbbNCAAWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'wbbNCAAWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 6 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Elite Eight Win (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.wbbEliteEightWin || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'wbbEliteEightWin')}
+                    />
+                  </TableCell>
+                  
+                  {/* Final Four Win (20 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.wbbFinalFourWin || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'wbbFinalFourWin')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Champion (30 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.wbbChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'wbbChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* Total Points */}
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                    <Tooltip title="Total: Regular Season + Postseason Points" arrow>
+                      <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : selectedSport === SportType.BASEBALL ? (
+        /* Baseball scoring UI */
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  onClick={() => handleSort('schoolName')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
+                >
+                  School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell colSpan={6} align="center">Scoring Rules</TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('total')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
+                >
+                  Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={1}></TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regular Season<br/>Wins<br/>(1 pt each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Reg Season<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Conf Tourn.<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Appearance<br/>(5 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regional<br/>Wins<br/>(5 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  CWS<br/>Wins<br/>(10 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Champion<br/>(30 pts)
+                </TableCell>
+                <TableCell align="right"></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedTeams.map((team, index) => (
+                <TableRow key={team.teamId} hover>
+                  <TableCell>
+                    {sortField === 'total' && sortDirection === 'desc' && (
+                      <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
+                        {index + 1}.  
+                      </span>
+                    )}
+                    {team.schoolName}
+                  </TableCell>
+                  
+                  {/* Regular Season Wins (1 pt each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.baseRegularSeasonWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'baseRegularSeasonWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 60 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Regular Season Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.baseRegularSeasonTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'baseRegularSeasonTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* Conference Tournament Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.baseConferenceTournTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'baseConferenceTournTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Tournament Appearance (5 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.baseNCAAAppearance || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'baseNCAAAppearance')}
+                    />
+                  </TableCell>
+                  
+                  {/* Regional/Super Regional Wins (5 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.baseRegionalWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'baseRegionalWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 5 }}
+                    />
+                  </TableCell>
+                  
+                  {/* College World Series Wins (10 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.baseCWSWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'baseCWSWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 5 }}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Champion (30 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.baseChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'baseChampion')}
+                    />
+                  </TableCell>
+                  
+                  {/* Total Points */}
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                    <Tooltip title="Total: Regular Season + Postseason Points" arrow>
+                      <span>{(team.regularSeasonPoints || 0) + (team.postseasonPoints || 0)}</span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : selectedSport === SportType.SOFTBALL ? (
+        /* Softball scoring UI */
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  onClick={() => handleSort('schoolName')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'schoolName' ? 'bold' : 'normal' }}
+                >
+                  School {sortField === 'schoolName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell colSpan={6} align="center">Scoring Rules</TableCell>
+                <TableCell 
+                  align="right" 
+                  onClick={() => handleSort('total')} 
+                  sx={{ cursor: 'pointer', fontWeight: sortField === 'total' ? 'bold' : 'normal' }}
+                >
+                  Total Points {sortField === 'total' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={1}></TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regular Season<br/>Wins<br/>(1 pt each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Reg Season<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Conf Tourn.<br/>Title<br/>(10 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Appearance<br/>(5 pts)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  Regional<br/>Wins<br/>(5 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  WCWS<br/>Wins<br/>(10 pts each)
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                  NCAA<br/>Champion<br/>(30 pts)
+                </TableCell>
+                <TableCell align="right"></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAndSortedTeams.map((team, index) => (
+                <TableRow key={team.teamId} hover>
+                  <TableCell>
+                    {sortField === 'total' && sortDirection === 'desc' && (
+                      <span style={{ display: 'inline-block', minWidth: '24px', marginRight: '8px', fontWeight: 'bold' }}>
+                        {index + 1}.  
+                      </span>
+                    )}
+                    {team.schoolName}
+                  </TableCell>
+                  
+                  {/* Regular Season Wins (1 pt each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.softRegularSeasonWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'softRegularSeasonWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 60 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Regular Season Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.softRegularSeasonTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'softRegularSeasonTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* Conference Tournament Title (10 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.softConferenceTournTitle || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'softConferenceTournTitle')}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Tournament Appearance (5 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.softNCAAAppearance || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'softNCAAAppearance')}
+                    />
+                  </TableCell>
+                  
+                  {/* Regional/Super Regional Wins (5 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.softRegionalWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'softRegionalWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 5 }}
+                    />
+                  </TableCell>
+                  
+                  {/* Women's College World Series Wins (10 pts each) */}
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={team.softCWSWins || 0}
+                      onChange={(e) => handleNumericFieldChange(team.teamId, 'softCWSWins', e.target.value)}
+                      sx={{ width: 60, input: { textAlign: 'center' } }}
+                      inputProps={{ min: 0, max: 5 }}
+                    />
+                  </TableCell>
+                  
+                  {/* NCAA Champion (30 pts) */}
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={team.softChampion || false}
+                      onChange={() => handleCheckboxChange(team.teamId, 'softChampion')}
                     />
                   </TableCell>
                   

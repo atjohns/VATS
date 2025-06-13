@@ -24,6 +24,9 @@ async function getTeamSelections(userId) {
       userId, 
       footballSelections: [], 
       mensbballSelections: [],
+      womensbballSelections: [],
+      baseballSelections: [],
+      softballSelections: [],
       perks: [], // Add empty perks array for new users
       isNew: true 
     });
@@ -52,11 +55,17 @@ async function getTeamSelections(userId) {
   // Separate selections by sport
   const footballSelections = fullTeamData.filter(team => team.sport === "football");
   const mensbballSelections = fullTeamData.filter(team => team.sport === "mensbball");
+  const womensbballSelections = fullTeamData.filter(team => team.sport === "womensbball");
+  const baseballSelections = fullTeamData.filter(team => team.sport === "baseball");
+  const softballSelections = fullTeamData.filter(team => team.sport === "softball");
   
   // Return with sport-specific arrays
   return createCorsResponse(200, {
     footballSelections,
     mensbballSelections,
+    womensbballSelections,
+    baseballSelections,
+    softballSelections,
     perks: perks, // Include perks in the response
     perkAdjustments: perkAdjustments // Include perk adjustments in the response
   });
@@ -103,6 +112,18 @@ async function updateTeamSelections(event, userId) {
     teamSelections = parsedBody.mensbballSelections;
     sport = "mensbball";
     console.log('Processing mens basketball selections');
+  } else if (parsedBody.womensbballSelections) {
+    teamSelections = parsedBody.womensbballSelections;
+    sport = "womensbball";
+    console.log('Processing womens basketball selections');
+  } else if (parsedBody.baseballSelections) {
+    teamSelections = parsedBody.baseballSelections;
+    sport = "baseball";
+    console.log('Processing baseball selections');
+  } else if (parsedBody.softballSelections) {
+    teamSelections = parsedBody.softballSelections;
+    sport = "softball";
+    console.log('Processing softball selections');
   }
   
   console.log('Received perks:', perks);
@@ -197,11 +218,17 @@ async function updateTeamSelections(event, userId) {
     // Separate by sport for the response
     const footballSelections = sport === "football" ? teamSelections : [];
     const mensbballSelections = sport === "mensbball" ? teamSelections : [];
+    const womensbballSelections = sport === "womensbball" ? teamSelections : [];
+    const baseballSelections = sport === "baseball" ? teamSelections : [];
+    const softballSelections = sport === "softball" ? teamSelections : [];
     
     result = {
       userId,
       footballSelections,
       mensbballSelections,
+      womensbballSelections,
+      baseballSelections,
+      softballSelections,
       perks: perks, // Include perks in the response
       perkAdjustments: perkAdjustments, // Include perk adjustments in the response
       createdAt: timestamp,
@@ -218,20 +245,49 @@ async function updateTeamSelections(event, userId) {
     // Merge the teams from other sports with the new team selections
     const mergedTeamSelections = [...otherSportSelections, ...minimalTeamData];
     
+    // Get existing perks and merge with new ones based on sport
+    const existingPerks = existingRecord.Item.perks || [];
+    
+    // Filter out perks for the current sport
+    const otherSportPerks = existingPerks.filter(perk => perk.sportType !== sport);
+    
+    // Filter new perks for current sport
+    const currentSportPerks = perks.filter(perk => perk.sportType === sport);
+    
+    // Merge perks from other sports with the new perks for current sport
+    const mergedPerks = [...otherSportPerks, ...currentSportPerks];
+    
+    // Get existing perk adjustments
+    const existingPerkAdjustments = existingRecord.Item.perkAdjustments || {};
+    
+    // Merge perk adjustments - take new values for current sport, preserve others
+    const mergedPerkAdjustments = {
+      ...existingPerkAdjustments,
+      ...perkAdjustments
+    };
+    
+    console.log('Merging perks:', {
+      existingPerks: existingPerks.length,
+      otherSportPerks: otherSportPerks.length,
+      currentSportPerks: currentSportPerks.length,
+      mergedPerks: mergedPerks.length
+    });
+    
     const updateParams = {
       TableName: process.env.TEAM_SELECTIONS_TABLE,
       Key: { userId },
       UpdateExpression: 'SET teamSelections = :teamSelections, perks = :perks, perkAdjustments = :perkAdjustments, updatedAt = :updatedAt',
       ExpressionAttributeValues: {
         ':teamSelections': mergedTeamSelections,
-        ':perks': perks, // Update perks in the database
-        ':perkAdjustments': perkAdjustments, // Update perk adjustments in the database
+        ':perks': mergedPerks, // Use merged perks to preserve perks from other sports
+        ':perkAdjustments': mergedPerkAdjustments, // Use merged adjustments
         ':updatedAt': timestamp
       },
       ReturnValues: 'ALL_NEW'
     };
     
     console.log('Merging and saving team selections with preserved point data:', mergedTeamSelections);
+    console.log('Merging and saving perks with preserved data for other sports:', mergedPerks);
     
     const updateCommand = new UpdateCommand(updateParams);
     const updateResult = await dynamodb.send(updateCommand);
@@ -261,12 +317,18 @@ async function updateTeamSelections(event, userId) {
     // Separate by sport
     const footballSelections = allFullTeamData.filter(team => team.sport === "football");
     const mensbballSelections = allFullTeamData.filter(team => team.sport === "mensbball");
+    const womensbballSelections = allFullTeamData.filter(team => team.sport === "womensbball");
+    const baseballSelections = allFullTeamData.filter(team => team.sport === "baseball");
+    const softballSelections = allFullTeamData.filter(team => team.sport === "softball");
     
     // Return the full team details with sport-specific arrays
     result = {
       ...updateResult.Attributes,
       footballSelections,
-      mensbballSelections
+      mensbballSelections,
+      womensbballSelections,
+      baseballSelections,
+      softballSelections
     };
     
     // Ensure perks are included in the response

@@ -8,6 +8,7 @@ export interface UserScore {
   totalPoints: number;
   teams: UserTeamScore[];
   perkAdjustment?: number; // Points adjustment for perks
+  sportPoints?: { [key: string]: number }; // For overall view, points per sport
 }
 
 export interface UserTeamScore {
@@ -22,7 +23,56 @@ export interface UserTeamScore {
 /**
  * Get the leaderboard data for all users
  */
-export const getLeaderboard = async (sport: SportType = SportType.FOOTBALL): Promise<UserScore[]> => {
+/**
+ * Get leaderboard data from all sports combined
+ */
+export const getAllSportsLeaderboard = async (): Promise<UserScore[]> => {
+  try {
+    // Import auth functions
+    const authModule = await import('aws-amplify/auth');
+    const { fetchAuthSession } = authModule;
+
+    // Get authentication session
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString() || '';
+    
+    // Create request headers with token
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    
+    // API endpoint for getting overall leaderboard
+    const path = `/leaderboard?sport=overall`;
+    
+    console.log(`Getting overall leaderboard data from ${path}`);
+    
+    // Make API request
+    const getPromise = get({
+      apiName: 'VatsApi',
+      path,
+      options: { headers }
+    });
+    
+    // Get and parse the response
+    const { body } = await getPromise.response;
+    const responseBody = await body.text();
+    
+    try {
+      const parsedBody = JSON.parse(responseBody);
+      // Extract userScores array from the response
+      const userScores = parsedBody.userScores || [];
+      return userScores;
+    } catch (e) {
+      console.error('Error parsing response body:', e);
+      return getMockOverallLeaderboardData();
+    }
+  } catch (error) {
+    console.error('Error getting overall leaderboard data:', error);
+    return getMockOverallLeaderboardData();
+  }
+};
+
+export const getLeaderboard = async (sport: SportType): Promise<UserScore[]> => {
   try {
     // Import auth functions
     const authModule = await import('aws-amplify/auth');
@@ -149,6 +199,56 @@ function getMockLeaderboardData(sport: SportType): UserScore[] {
       name: 'Bob Johnson',
       totalPoints: 70,
       teams: [mockTeams[1], mockTeams[2]]
+    }
+  ];
+}
+
+/**
+ * Generate mock overall leaderboard data for development
+ */
+function getMockOverallLeaderboardData(): UserScore[] {
+  return [
+    {
+      userId: '1',
+      username: 'john.doe',
+      name: 'John Doe',
+      totalPoints: 210,
+      teams: [],
+      sportPoints: {
+        'football': 98,
+        'mensbball': 45,
+        'womensbball': 32,
+        'baseball': 20,
+        'softball': 15
+      }
+    },
+    {
+      userId: '2',
+      username: 'jane.smith',
+      name: 'Jane Smith',
+      totalPoints: 185,
+      teams: [],
+      sportPoints: {
+        'football': 85,
+        'mensbball': 40,
+        'womensbball': 30,
+        'baseball': 25,
+        'softball': 5
+      }
+    },
+    {
+      userId: '3',
+      username: 'bob.johnson',
+      name: 'Bob Johnson',
+      totalPoints: 150,
+      teams: [],
+      sportPoints: {
+        'football': 70,
+        'mensbball': 35,
+        'womensbball': 25,
+        'baseball': 10,
+        'softball': 10
+      }
     }
   ];
 }

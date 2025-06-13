@@ -9,6 +9,10 @@ const { getAllTeamSelections } = require('./teamSelections');
  * Get leaderboard data for all users
  */
 async function getLeaderboard(sport = 'football') {
+  // Special case for overall view
+  if (sport === 'overall') {
+    return getOverallLeaderboard();
+  }
   try {
     console.log(`Generating leaderboard for sport: ${sport}`);
     
@@ -150,6 +154,140 @@ async function getLeaderboard(sport = 'football') {
     console.error('Error generating leaderboard:', error);
     return createCorsResponse(500, { 
       message: 'Failed to generate leaderboard',
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Get overall leaderboard data across all sports
+ */
+async function getOverallLeaderboard() {
+  try {
+    // Define sports to include
+    const sports = ['football', 'mensbball', 'womensbball', 'baseball', 'softball'];
+    
+    // Get all users from Cognito
+    const allUsersResponse = await getAllUsers();
+    const users = allUsersResponse.users || [];
+    console.log(`Found ${users.length} users`);
+    
+    // Get all user team selections
+    const userSelectionParams = {
+      TableName: process.env.TEAM_SELECTIONS_TABLE
+    };
+    
+    const selectionsCommand = new ScanCommand(userSelectionParams);
+    const selectionsResult = await dynamodb.send(selectionsCommand);
+    const userSelections = selectionsResult.Items || [];
+    console.log(`Found ${userSelections.length} user selection entries`);
+    
+    // Track combined scores per user
+    const userScoresMap = new Map();
+    
+    // Process each sport
+    for (const currentSport of sports) {
+      console.log(`Processing sport: ${currentSport}`);
+      
+      // Get team scores for this sport
+      const scoreParams = {
+        TableName: process.env.TEAM_SCORES_TABLE,
+        FilterExpression: 'sport = :sportValue',
+        ExpressionAttributeValues: { ':sportValue': currentSport }
+      };
+      
+      const scoreCommand = new ScanCommand(scoreParams);
+      const scoreResult = await dynamodb.send(scoreCommand);
+      const teamScores = scoreResult.Items || [];
+      console.log(`Found ${teamScores.length} team scores for sport: ${currentSport}`);
+      
+      // Create a map of team scores for quick lookup
+      const scoreMap = {};
+      teamScores.forEach(score => {
+        scoreMap[score.teamId] = score;
+      });
+      
+      // Calculate score for each user for this sport
+      userSelections.forEach(item => {
+        const userId = item.userId;
+        
+        // Skip if user has no team selections
+        if (!item.teamSelections) return;
+        
+        // Get user details
+        const userInfo = users.find(u => u.userId === userId) || { 
+          userId: userId,
+          username: userId
+        };
+        
+        // Ensure we have either a name or a username
+        if (!userInfo.name || userInfo.name.trim() === '') {
+          userInfo.name = userInfo.username || userInfo.userId;
+        }
+        
+        // Get this user's team selections for this sport
+        const sportTeams = item.teamSelections.filter(t => t && t.sport === currentSport);
+        
+        // Calculate points for this sport
+        let sportPoints = 0;
+        sportTeams.forEach(team => {
+          if (!team || !team.id) return;
+          
+          // Find score data for this team
+          const scoreData = scoreMap[team.id] || {
+            regularSeasonPoints: 0,
+            postseasonPoints: 0
+          };
+          
+          // Calculate total points for this team
+          const regularSeasonPoints = team.regularSeasonPoints || scoreData.regularSeasonPoints || 0;
+          const postseasonPoints = team.postseasonPoints || scoreData.postseasonPoints || 0;
+          const totalTeamPoints = regularSeasonPoints + postseasonPoints;
+          
+          sportPoints += totalTeamPoints;
+        });
+        
+        // Add perk adjustments for this sport
+        const perkAdjustment = item.perkAdjustments && item.perkAdjustments[currentSport] ? Number(item.perkAdjustments[currentSport]) : 0;
+        sportPoints += perkAdjustment;
+        
+        // Get or create user entry in map
+        let userEntry = userScoresMap.get(userId);
+        if (!userEntry) {
+          userEntry = {
+            userId,
+            username: userInfo.username || userId,
+            name: userInfo.name,
+            totalPoints: 0,
+            teams: [], // Empty for overall view
+            sportPoints: {}
+          };
+          userScoresMap.set(userId, userEntry);
+        }
+        
+        // Add sport points to user's total
+        userEntry.sportPoints[currentSport] = sportPoints;
+        userEntry.totalPoints += sportPoints;
+      });
+    }
+    
+    // Convert map values to array
+    const userScores = Array.from(userScoresMap.values());
+    
+    // Sort by total points (highest first)
+    userScores.sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    console.log(`Returning overall leaderboard with ${userScores.length} user entries`);
+    console.log(`First user score example:`, userScores.length > 0 ? JSON.stringify(userScores[0]) : 'No users');
+    
+    return createCorsResponse(200, { 
+      userScores,
+      sport: 'overall'
+    });
+  } catch (error) {
+    console.error('Error generating overall leaderboard:', error);
+    return createCorsResponse(500, { 
+      message: 'Failed to generate overall leaderboard',
       error: error.message
     });
   }

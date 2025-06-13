@@ -17,6 +17,9 @@ export interface UserSelections {
   userId: string;
   footballSelections?: TeamSelection[];
   mensbballSelections?: TeamSelection[];
+  womensbballSelections?: TeamSelection[];
+  baseballSelections?: TeamSelection[];
+  softballSelections?: TeamSelection[];
   teamSelections?: TeamSelection[]; // Legacy format
   perks?: UserPerkSelection[]; // User's perk selections
   perkAdjustments?: { [key: string]: number }; // Sport-specific perk point adjustments
@@ -66,6 +69,9 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
         userId,
         footballSelections: parsedBody.footballSelections || [],
         mensbballSelections: parsedBody.mensbballSelections || [],
+        womensbballSelections: parsedBody.womensbballSelections || [],
+        baseballSelections: parsedBody.baseballSelections || [],
+        softballSelections: parsedBody.softballSelections || [],
         teamSelections: parsedBody.teamSelections || [],
         perkAdjustments: parsedBody.perkAdjustments || {},
         perks: parsedBody.perks || []
@@ -136,8 +142,26 @@ export const updateTeamSelections = async (
               perks: perks || [],
               perkAdjustments: perkAdjustments || {}
             } 
-          : { 
+          : sport === 'mensbball'
+          ? { 
               mensbballSelections: cleanedTeamSelections,
+              perks: perks || [],
+              perkAdjustments: perkAdjustments || {}
+            }
+          : sport === 'womensbball'
+          ? { 
+              womensbballSelections: cleanedTeamSelections,
+              perks: perks || [],
+              perkAdjustments: perkAdjustments || {}
+            }
+          : sport === 'baseball'
+          ? { 
+              baseballSelections: cleanedTeamSelections,
+              perks: perks || [],
+              perkAdjustments: perkAdjustments || {}
+            }
+          : { 
+              softballSelections: cleanedTeamSelections,
               perks: perks || [],
               perkAdjustments: perkAdjustments || {}
             })
@@ -160,6 +184,9 @@ export const updateTeamSelections = async (
         userId,
         footballSelections: parsedBody.footballSelections || [],
         mensbballSelections: parsedBody.mensbballSelections || [],
+        womensbballSelections: parsedBody.womensbballSelections || [],
+        baseballSelections: parsedBody.baseballSelections || [],
+        softballSelections: parsedBody.softballSelections || [],
         teamSelections: parsedBody.teamSelections || [],
         perks: parsedBody.perks || [],
         perkAdjustments: parsedBody.perkAdjustments || {}

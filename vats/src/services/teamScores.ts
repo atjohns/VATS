@@ -18,6 +18,44 @@ export interface TeamScore {
   cfpWins?: number;
   cfpSemiFinalWin?: boolean;
   cfpChampion?: boolean;
+  
+  // Men's Basketball specific scoring fields
+  mbbRegularSeasonWins?: number;
+  mbbRegularSeasonTitle?: boolean;
+  mbbConferenceTournTitle?: boolean;
+  mbbNCAAAppearance?: boolean;
+  mbbNCAAWins?: number;
+  mbbEliteEightWin?: boolean;
+  mbbFinalFourWin?: boolean;
+  mbbChampion?: boolean;
+  
+  // Women's Basketball specific scoring fields
+  wbbRegularSeasonWins?: number;
+  wbbRegularSeasonTitle?: boolean;
+  wbbConferenceTournTitle?: boolean;
+  wbbNCAAAppearance?: boolean;
+  wbbNCAAWins?: number;
+  wbbEliteEightWin?: boolean;
+  wbbFinalFourWin?: boolean;
+  wbbChampion?: boolean;
+  
+  // Baseball specific scoring fields
+  baseRegularSeasonWins?: number;
+  baseRegularSeasonTitle?: boolean;
+  baseConferenceTournTitle?: boolean;
+  baseNCAAAppearance?: boolean;
+  baseRegionalWins?: number;
+  baseCWSWins?: number;
+  baseChampion?: boolean;
+  
+  // Softball specific scoring fields
+  softRegularSeasonWins?: number;
+  softRegularSeasonTitle?: boolean;
+  softConferenceTournTitle?: boolean;
+  softNCAAAppearance?: boolean;
+  softRegionalWins?: number;
+  softCWSWins?: number;
+  softChampion?: boolean;
 }
 
 /**

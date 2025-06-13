@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Autocomplete, 
   TextField, 
@@ -61,6 +61,9 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   const [hasExistingSelections, setHasExistingSelections] = useState(false);
   const [errors, setErrors] = useState<string[]>(Array(maxTeams).fill(''));
   const [perkAdjustments, setPerkAdjustments] = useState<{[key: string]: number}>(initialPerkAdjustments || {});
+  
+  // Track teams selected in other sports
+  const [teamsInOtherSports, setTeamsInOtherSports] = useState<TeamSelection[]>([]);
 
   // Use ref to track if API has been called already (won't trigger re-renders)
   const hasLoadedFromApiRef = useRef(false);
@@ -141,20 +144,48 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         const sportPerks = fetchedPerks.filter(perk => perk.sportType === sport);
         setSelectedPerks(sportPerks);
         
-        // Get team selections
+        // Get team selections for current sport
         let teamSelectionsArray:any[] = [];
         
+        // Get all team selections across all sports to track duplicates
+        const allSportsTeams: TeamSelection[] = [];
+        
+        // Add teams from all sports
+        if (Array.isArray(userSelections.footballSelections)) {
+          allSportsTeams.push(...userSelections.footballSelections);
+        }
+        if (Array.isArray(userSelections.mensbballSelections)) {
+          allSportsTeams.push(...userSelections.mensbballSelections);
+        }
+        if (Array.isArray(userSelections.womensbballSelections)) {
+          allSportsTeams.push(...userSelections.womensbballSelections);
+        }
+        if (Array.isArray(userSelections.baseballSelections)) {
+          allSportsTeams.push(...userSelections.baseballSelections);
+        }
+        if (Array.isArray(userSelections.softballSelections)) {
+          allSportsTeams.push(...userSelections.softballSelections);
+        }
+        
+        // Set teams from other sports
+        setTeamsInOtherSports(allSportsTeams.filter(team => team.sport !== sport));
+        
+        // Set teams for current sport
         if (sport === SportType.FOOTBALL && Array.isArray(userSelections.footballSelections)) {
           teamSelectionsArray = userSelections.footballSelections;
           setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
         } else if (sport === SportType.MENS_BASKETBALL && Array.isArray(userSelections.mensbballSelections)) {
           teamSelectionsArray = userSelections.mensbballSelections;
           setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
-        } else if (Array.isArray(userSelections.teamSelections)) {
-          // Legacy format - filter by sport
-          teamSelectionsArray = userSelections.teamSelections.filter(
-            (team: TeamSelection) => !team.sport || team.sport === sport
-          );
+        } else if (sport === SportType.WOMENS_BASKETBALL && Array.isArray(userSelections.womensbballSelections)) {
+          teamSelectionsArray = userSelections.womensbballSelections;
+          setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
+        } else if (sport === SportType.BASEBALL && Array.isArray(userSelections.baseballSelections)) {
+          teamSelectionsArray = userSelections.baseballSelections;
+          setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
+        }else if (sport === SportType.SOFTBALL && Array.isArray(userSelections.softballSelections)) {
+          teamSelectionsArray = userSelections.softballSelections;
+          setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
         } else {
           console.warn('Could not extract team selections from response:', userSelections);
         }
@@ -215,14 +246,26 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   const handleTeamChange = (index: number, newValue: D1Teams | null) => {
     const newTeams = [...selectedTeams];
     
-    // Check if this team is already selected in another slot
-    const isDuplicate = newValue && 
+    // Check if this team is already selected in another slot in the current sport
+    const isDuplicateInSport = newValue && 
       newTeams.some((team, i) => i !== index && team && team.id === newValue.id);
     
-    if (isDuplicate) {
+    // Check if this team is already selected in another sport
+    const isDuplicateInOtherSport = newValue && 
+      teamsInOtherSports.some(team => team && team.id === newValue.id);
+    
+    if (isDuplicateInSport) {
       // Set error for this field
       const newErrors = [...errors];
       newErrors[index] = 'This team is already selected in another slot';
+      setErrors(newErrors);
+      return;
+    }
+    
+    if (isDuplicateInOtherSport) {
+      // Set error for this field
+      const newErrors = [...errors];
+      newErrors[index] = 'This team is already selected in another sport';
       setErrors(newErrors);
       return;
     }
@@ -362,7 +405,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                 size="small"
                 variant="outlined"
               >
-                Edit Selections
+                Edit
               </Button>
             </Box>
             
@@ -469,7 +512,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               const p4Conferences = ["SEC", "ACC", "Big Ten", "Big 12"];
               
               // First filter by sport
-              const sportTeams = d1Teams.filter(team => {
+              const availableTeams = d1Teams.filter(team => {
                 // For football, only show FBS teams
                 if (sport === SportType.FOOTBALL) {
                   return team.fbs === true;
@@ -480,29 +523,29 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                 }
               });
               
-              // Ride or Die (index 0) and Wild Card (index 5) - allow any team
+              // Ride or Die (index 0) and Wild Card (index 5) - allow any team (that's not selected elsewhere)
               if (index === 0 || index === 5) {
-                return sportTeams;
+                return availableTeams;
               }
               // SEC (index 1)
               else if (index === 1) {
-                return sportTeams.filter(team => team.conference === "SEC" || team.conference === "Southeastern Conference");
+                return availableTeams.filter(team => team.conference === "SEC" || team.conference === "Southeastern Conference");
               }
               // ACC (index 2)
               else if (index === 2) {
-                return sportTeams.filter(team => team.conference === "ACC" || team.conference === "Atlantic Coast Conference");
+                return availableTeams.filter(team => team.conference === "ACC" || team.conference === "Atlantic Coast Conference");
               }
               // Big Ten (index 3)
               else if (index === 3) {
-                return sportTeams.filter(team => team.conference === "Big Ten" || team.conference === "Big Ten Conference");
+                return availableTeams.filter(team => team.conference === "Big Ten" || team.conference === "Big Ten Conference");
               }
               // Big 12 (index 4)
               else if (index === 4) {
-                return sportTeams.filter(team => team.conference === "Big 12" || team.conference === "Big 12 Conference");
+                return availableTeams.filter(team => team.conference === "Big 12" || team.conference === "Big 12 Conference");
               }
               // Non-P4 (index 6 and 7) - exclude P4 conferences
               else if (index === 6 || index === 7) {
-                return sportTeams.filter(team => 
+                return availableTeams.filter(team => 
                   !p4Conferences.includes(team.conference) && 
                   team.conference !== "Southeastern Conference" &&
                   team.conference !== "Atlantic Coast Conference" &&
@@ -511,7 +554,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               }
               
               // Default case (shouldn't reach here)
-              return sportTeams;
+              return availableTeams;
             };
             
             return (
@@ -544,6 +587,10 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                       </Box>
                     </li>
                   )}
+                  getOptionDisabled={(option) => {
+                    // Disable options that are already selected in other sports
+                    return teamsInOtherSports.some(team => team.id === option.id);
+                  }}
                 />
                 {errors[index] && <FormHelperText error>{errors[index]}</FormHelperText>}
                 

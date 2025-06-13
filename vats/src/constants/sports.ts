@@ -4,7 +4,10 @@
 
 export enum SportType {
   FOOTBALL = 'football',
-  MENS_BASKETBALL = 'mensbball'
+  MENS_BASKETBALL = 'mensbball',
+  WOMENS_BASKETBALL = 'womensbball',
+  BASEBALL = 'baseball',
+  SOFTBALL = 'softball'
 }
 
 export interface SportDefinition {
@@ -16,12 +19,27 @@ export interface SportDefinition {
 export const SPORTS: Record<SportType, SportDefinition> = {
   [SportType.FOOTBALL]: {
     id: SportType.FOOTBALL,
-    displayName: 'College Football',
+    displayName: 'Football',
     maxTeams: 8
   },
   [SportType.MENS_BASKETBALL]: {
     id: SportType.MENS_BASKETBALL,
-    displayName: 'Men\'s Basketball',
+    displayName: 'Men\'s Ball',
+    maxTeams: 8
+  },
+  [SportType.WOMENS_BASKETBALL]: {
+    id: SportType.WOMENS_BASKETBALL,
+    displayName: 'Women\'s Bball',
+    maxTeams: 8
+  },
+  [SportType.BASEBALL]: {
+    id: SportType.BASEBALL,
+    displayName: 'Baseball',
+    maxTeams: 8
+  },
+  [SportType.SOFTBALL]: {
+    id: SportType.SOFTBALL,
+    displayName: 'Softball',
     maxTeams: 8
   }
 };
@@ -53,6 +71,36 @@ export const SLOT_LABELS: Record<SportType, string[]> = {
     'Non-P4'
   ],
   [SportType.MENS_BASKETBALL]: [
+    'Ride or Die Team',
+    'SEC',
+    'ACC',
+    'Big Ten',
+    'Big 12',
+    'Wild Card',
+    'Non-P4', 
+    'Non-P4'
+  ],
+  [SportType.WOMENS_BASKETBALL]: [
+    'Ride or Die Team',
+    'SEC',
+    'ACC',
+    'Big Ten',
+    'Big 12',
+    'Wild Card',
+    'Non-P4', 
+    'Non-P4'
+  ],
+  [SportType.BASEBALL]: [
+    'Ride or Die Team',
+    'SEC',
+    'ACC',
+    'Big Ten',
+    'Big 12',
+    'Wild Card',
+    'Non-P4', 
+    'Non-P4'
+  ],
+  [SportType.SOFTBALL]: [
     'Ride or Die Team',
     'SEC',
     'ACC',
