@@ -8,7 +8,8 @@ import {
   NuclearOption,
   RussianRoulette,
   PoisonTheWell,
-  MeatShield
+  MeatShield,
+  TwoForOne
 } from '../assets';
 
 // For perks that require additional information
@@ -93,7 +94,7 @@ export const AVAILABLE_PERKS: Perk[] = [
   {
     id: 'double_down',
     title: 'Double Down',
-    description: 'Select a team on your roster, that team will earn double points for the tournament but no other team on your roster can earn tournament points (teams retain all regular seasons/conference tournament points earned at time of detonation).',
+    description: 'Select a team on your roster, that team will earn double points for the tournament but no other team on your roster can earn tournament points (teams retain all regular seasons/conference tournament points).',
     image: DoubleDown,
     usageCount: 0,
     maxUses: 2,
@@ -165,22 +166,27 @@ export const AVAILABLE_PERKS: Perk[] = [
     }]
   },
   {
-    id: 'player_spotlight',
-    title: 'Player Spotlight',
-    description: 'Select a player to earn 3 bonus points each time they score.',
-    image: PoisonTheWell,
+    id: 'twoforone',
+    title: 'Two for One',
+    description: 'Throw away two teams and replace them with a new team who earns full tournament points, but you lose all regular season points from the discarded teams.You also do not gain any regular season points for the new team.',
+    image: TwoForOne,
     usageCount: 0,
     maxUses: 2,
     inputs: [{
       type: PerkInputType.TEAM,
-      label: 'Select Team',
+      label: 'Discarded Team',
       required: true,
-      placeholder: 'Select the player\'s team'
+      placeholder: 'Select the first sacrified team'
     }, {
-      type: PerkInputType.PLAYER,
-      label: 'Select Player',
+      type: PerkInputType.TEAM,
+      label: 'Discarded Team',
       required: true,
-      placeholder: 'Enter the player\'s name'
+      placeholder: 'Select the second sacrified team'
+    }, {
+      type: PerkInputType.OPPONENT,
+      label: 'Replacement team',
+      required: true,
+      placeholder: 'Select the replacement team'
     }]
   }
 ];

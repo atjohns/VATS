@@ -21,7 +21,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { d1Teams, D1Teams } from '../constants/d1teams';
 import { SportType, SPORTS, DEFAULT_SPORT, SLOT_LABELS as SPORT_SLOT_LABELS } from '../constants/sports';
 
-// MAX_TEAMS is now dynamically set from sportConfig.maxTeams
 
 interface TeamSelectionFormProps {
   sport?: SportType; // The sport type this form handles
@@ -72,14 +71,12 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   // Initialize perk adjustments from props
   useEffect(() => {
     if (initialPerkAdjustments && Object.keys(initialPerkAdjustments).length > 0) {
-      console.log('Initializing from initialPerkAdjustments prop:', initialPerkAdjustments);
       setPerkAdjustments(initialPerkAdjustments);
     }
   }, [initialPerkAdjustments]);
   
   useEffect(() => {
     if (initialTeams && initialTeams.length > 0 && initialTeams.some(team => team !== null)) {
-      console.log('Initializing from initialTeams prop');
       
       // Filter by sport if needed
       const sportFiltered = initialTeams.filter(
@@ -100,7 +97,6 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
     
     // Initialize perks if provided
     if (initialPerks && initialPerks.length > 0) {
-      console.log('Initializing from initialPerks prop', initialPerks);
       
       // Filter perks for this sport
       const sportPerks = initialPerks.filter(perk => perk.sportType === sport);
@@ -115,13 +111,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   useEffect(() => {
     // Skip API call if we already loaded data once
     if (hasLoadedFromApiRef.current) {
-      console.log('Skipping API call - data already loaded');
       return;
     }
     
     // Only skip API call in admin mode if initialTeams are provided
     if (isAdmin && initialTeams && initialTeams.length > 0) {
-      console.log('Admin mode with initialTeams - skipping API call');
       return;
     }
     
@@ -131,10 +125,8 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         
         // We already handle initialTeams in a separate useEffect
         
-        console.log('User', user);
         // Get team selections and perks from API
         const userSelections = await getTeamSelections(userId || user?.userId || '', isAdmin);
-        console.log('Perk adjustments found', userSelections.perkAdjustments);
         
         // Get perks from the response
         const fetchedPerks = userSelections.perks || [];
@@ -187,15 +179,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
           teamSelectionsArray = userSelections.softballSelections;
           setPerkAdjustments(userSelections.perkAdjustments || initialPerkAdjustments)
         } else {
-          console.warn('Could not extract team selections from response:', userSelections);
         }
                
         // Validate each team object to ensure it has the required properties
         const validTeams = teamSelectionsArray.filter(team => {
           const isValid = Boolean(team && typeof team === 'object' && team.schoolName);
-          if (!isValid) {
-            console.warn('Invalid team object found:', team);
-          }
           return isValid;
         });
                 
@@ -220,7 +208,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         setEditMode(!hasFullRoster);
         
       } catch (error) {
-        console.error('Error fetching team selections:', error);
+        console.error('Error fetching team selections');
         setEditMode(true); // If error, default to edit mode
       } finally {
         setLoading(false);
@@ -229,7 +217,6 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       }
     };
 
-    console.log('Starting team selections fetch');
     fetchTeamSelections();
   }, [initialTeams, userId, user?.userId, sport, isAdmin, maxTeams, user]);
 
@@ -238,7 +225,6 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
     // Check if we're in read-only mode but have no teams to display
     if (hasExistingSelections && !editMode && 
         (!selectedTeams || selectedTeams.every(team => team === null))) {
-      console.warn('No teams to display in read-only mode, forcing edit mode');
       setEditMode(true);
     }
   }, [selectedTeams, hasExistingSelections, editMode]);
@@ -325,7 +311,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       setHasExistingSelections(true);
       setEditMode(false); // Switch back to view mode after save
     } catch (error) {
-      console.error('Error saving team selections:', error);
+      console.error('Error saving team selections');
       alert('Failed to save team selections');
     } finally {
       setSaving(false);
@@ -495,7 +481,6 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                       ...perkAdjustments,
                       [sport]: value
                     };
-                    console.log('Setting perk adjustments to:', newAdjustments, 'for sport:', sport, 'value:', value);
                     setPerkAdjustments(newAdjustments);
                   }}
                   helperText="Manual adjustment to add or subtract points from total score"

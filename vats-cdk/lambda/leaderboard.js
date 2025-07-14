@@ -4,27 +4,48 @@ const {
 const { dynamodb, createCorsResponse } = require('./utils');
 const { getAllUsers } = require('./userProfile');
 const { getAllTeamSelections } = require('./teamSelections');
+const { sports, getSportsConfig } = require('./sportsConfig');
 
 /**
  * Get leaderboard data for all users
  */
 async function getLeaderboard(sport = 'football') {
+  // Get the sport configuration
+  const sportConfig = sports.find(s => s.id === sport);
+  
+  // If sport doesn't exist, return error
+  if (!sportConfig) {
+    return createCorsResponse(400, {
+      message: `Invalid sport: ${sport}`,
+      sportsConfig: getSportsConfig()
+    });
+  }
+  
+  // If sport exists but standings are not active, return disabled message
+  if (!sportConfig.standingsActive) {
+    return createCorsResponse(200, { 
+      userScores: [],
+      sport,
+      disabled: true,
+      message: "This leaderboard is currently disabled. Please use the overall leaderboard.",
+      sportsConfig: getSportsConfig()
+    });
+  }
+  
   // Special case for overall view
   if (sport === 'overall') {
     return getOverallLeaderboard();
   }
+  
   try {
-    console.log(`Generating leaderboard for sport: ${sport}`);
     
     // Get all users from Cognito
     const allUsersResponse = await getAllUsers();
     const users = allUsersResponse.users || [];
-    console.log(`Found ${users.length} users`);
     
     // Get all team selections
     const teamSelectionsResponse = await getAllTeamSelections(sport);
     const allTeamSelections = teamSelectionsResponse.teamSelections || [];
-    console.log(`Found ${allTeamSelections.length} unique teams selected across users`);
     
     // Get team scores from the database
     const scoreParams = {
@@ -36,7 +57,6 @@ async function getLeaderboard(sport = 'football') {
     const scoreCommand = new ScanCommand(scoreParams);
     const scoreResult = await dynamodb.send(scoreCommand);
     const teamScores = scoreResult.Items || [];
-    console.log(`Found ${teamScores.length} team scores for sport: ${sport}`);
     
     // Create a map of team scores for quick lookup
     const scoreMap = {};
@@ -52,7 +72,6 @@ async function getLeaderboard(sport = 'football') {
     const selectionsCommand = new ScanCommand(userSelectionParams);
     const selectionsResult = await dynamodb.send(selectionsCommand);
     const userSelections = selectionsResult.Items || [];
-    console.log(`Found ${userSelections.length} user selection entries`);
     
     // Process user selections and scores
     const userScores = userSelections.map(item => {
@@ -68,7 +87,6 @@ async function getLeaderboard(sport = 'football') {
       }
       
       if (!item.teamSelections) {
-        console.log(`No team selections found for user ${item.userId}`);
         return null;
       }
       
@@ -77,7 +95,6 @@ async function getLeaderboard(sport = 'football') {
         .filter(t => t.sport === sport)
         .map(team => {
           if (!team || !team.id) {
-            console.log(`Invalid team selection found for user ${item.userId}:`, team);
             return null;
           }
           
@@ -115,10 +132,7 @@ async function getLeaderboard(sport = 'football') {
       
       // Get perk adjustment for this sport if it exists
       const perkAdjustment = item.perkAdjustments && item.perkAdjustments[sport] ? Number(item.perkAdjustments[sport]) : 0;
-      console.log(`Perk adjustment for user ${item.userId}:`, item.perkAdjustments, `Raw: ${item.perkAdjustments && item.perkAdjustments[sport]}`, `Result: ${perkAdjustment} points`);
       
-      // Log the stringified perkAdjustments to check for nesting issues
-      console.log('perkAdjustments stringified:', JSON.stringify(item.perkAdjustments));
       
       // Calculate total points for this user (including perk adjustment)
       const teamPoints = teamSelections.reduce(
@@ -143,15 +157,13 @@ async function getLeaderboard(sport = 'football') {
     // Sort by total points (highest first)
     userScores.sort((a, b) => b.totalPoints - a.totalPoints);
     
-    console.log(`Returning leaderboard with ${userScores.length} user entries`);
-    console.log(`First user score example:`, userScores.length > 0 ? JSON.stringify(userScores[0]) : 'No users');
     
     return createCorsResponse(200, { 
       userScores,
       sport
     });
   } catch (error) {
-    console.error('Error generating leaderboard:', error);
+    console.error('Error generating leaderboard');
     return createCorsResponse(500, { 
       message: 'Failed to generate leaderboard',
       error: error.message
@@ -170,7 +182,6 @@ async function getOverallLeaderboard() {
     // Get all users from Cognito
     const allUsersResponse = await getAllUsers();
     const users = allUsersResponse.users || [];
-    console.log(`Found ${users.length} users`);
     
     // Get all user team selections
     const userSelectionParams = {
@@ -180,14 +191,12 @@ async function getOverallLeaderboard() {
     const selectionsCommand = new ScanCommand(userSelectionParams);
     const selectionsResult = await dynamodb.send(selectionsCommand);
     const userSelections = selectionsResult.Items || [];
-    console.log(`Found ${userSelections.length} user selection entries`);
     
     // Track combined scores per user
     const userScoresMap = new Map();
     
     // Process each sport
     for (const currentSport of sports) {
-      console.log(`Processing sport: ${currentSport}`);
       
       // Get team scores for this sport
       const scoreParams = {
@@ -199,7 +208,6 @@ async function getOverallLeaderboard() {
       const scoreCommand = new ScanCommand(scoreParams);
       const scoreResult = await dynamodb.send(scoreCommand);
       const teamScores = scoreResult.Items || [];
-      console.log(`Found ${teamScores.length} team scores for sport: ${currentSport}`);
       
       // Create a map of team scores for quick lookup
       const scoreMap = {};
@@ -277,15 +285,14 @@ async function getOverallLeaderboard() {
     // Sort by total points (highest first)
     userScores.sort((a, b) => b.totalPoints - a.totalPoints);
     
-    console.log(`Returning overall leaderboard with ${userScores.length} user entries`);
-    console.log(`First user score example:`, userScores.length > 0 ? JSON.stringify(userScores[0]) : 'No users');
     
     return createCorsResponse(200, { 
       userScores,
-      sport: 'overall'
+      sport: 'overall',
+      sportsConfig: getSportsConfig()
     });
   } catch (error) {
-    console.error('Error generating overall leaderboard:', error);
+    console.error('Error generating overall leaderboard');
     return createCorsResponse(500, { 
       message: 'Failed to generate overall leaderboard',
       error: error.message

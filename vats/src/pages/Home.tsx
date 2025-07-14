@@ -190,7 +190,11 @@ const Home: React.FC = () => {
                     Overall
                   </MenuItem>
                   {ALL_SPORTS.map(sport => (
-                    <MenuItem key={sport.id} value={sport.id}>
+                    <MenuItem 
+                      key={sport.id} 
+                      value={sport.id} 
+                      disabled={!sport.showLeaderboard}
+                    >
                       {sport.displayName}
                     </MenuItem>
                   ))}

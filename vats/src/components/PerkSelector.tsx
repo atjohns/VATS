@@ -117,16 +117,16 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
     }
   };
 
-  const handleInputChange = (inputType: string, value: any) => {
+  const handleInputChange = (inputKey: string, value: any) => {
     setInputValues({
       ...inputValues,
-      [inputType]: value
+      [inputKey]: value
     });
     
     // Clear error for this input if it exists
-    if (inputErrors[inputType]) {
+    if (inputErrors[inputKey]) {
       const newErrors = {...inputErrors};
-      delete newErrors[inputType];
+      delete newErrors[inputKey];
       setInputErrors(newErrors);
     }
   };
@@ -172,9 +172,11 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
       let hasErrors = false;
       const newErrors: {[key: string]: string} = {};
       
-      perk.inputs?.forEach(input => {
-        if (input.required && !inputValues[input.type]) {
-          newErrors[input.type] = `${input.label} is required`;
+      // Validate each input
+      perk.inputs?.forEach((input, index) => {
+        const inputKey = `${input.type}_${index}`;
+        if (input.required && !inputValues[inputKey]) {
+          newErrors[inputKey] = `${input.label} is required`;
           hasErrors = true;
         }
       });
@@ -184,11 +186,39 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
         return;
       }
       
+      // Convert the indexed inputs back to the expected format for storage
+      const normalizedInputs: {[key: string]: any} = {};
+      
+      // Group inputs by type
+      const inputsByType: {[key: string]: any[]} = {};
+      
+      // First, collect all values by input type
+      perk.inputs?.forEach((input, index) => {
+        const inputKey = `${input.type}_${index}`;
+        const value = inputValues[inputKey];
+        
+        if (value) {
+          if (!inputsByType[input.type]) {
+            inputsByType[input.type] = [];
+          }
+          inputsByType[input.type].push(value);
+        }
+      });
+      
+      // Then, convert to the expected format (single value or array)
+      Object.entries(inputsByType).forEach(([type, values]) => {
+        if (values.length === 1) {
+          normalizedInputs[type] = values[0];
+        } else if (values.length > 1) {
+          normalizedInputs[type] = values;
+        }
+      });
+      
       // Create new perk selection
       const newPerkSelection: UserPerkSelection = {
         perkId: selectedPerkId,
         sportType: sport,
-        inputs: inputValues
+        inputs: normalizedInputs
       };
       
       onPerkSelect(newPerkSelection);
@@ -208,29 +238,48 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
           Additional Information Needed
         </Typography>
         
-        {perk.inputs.map((input, index) => {
+        {perk.inputs?.map((input, index) => {
+          // Create a unique key for each input based on type and index
+          const inputKey = `${input.type}_${index}`;
+          
           switch (input.type) {
             case PerkInputType.TEAM:
+              // Filter out teams already selected in other inputs of the same type
+              const selectedTeams = perk.inputs
+                ?.filter((otherInput, idx) => 
+                  otherInput.type === PerkInputType.TEAM && 
+                  idx !== index && 
+                  inputValues[`${otherInput.type}_${idx}`])
+                .map(otherInput => {
+                  // Find the index of this input in the inputs array
+                  const idx = perk.inputs?.findIndex(i => i === otherInput) ?? -1;
+                  return inputValues[`${otherInput.type}_${idx}`];
+                }) || [];
+              
+              const availableTeamsForThisInput = (availableTeams.length > 0 ? availableTeams : d1Teams)
+                .filter(team => !selectedTeams.some(selectedTeam => 
+                  selectedTeam && selectedTeam.schoolName === team.schoolName));
+              
               return (
                 <FormControl 
-                  key={`${input.type}-${index}`} 
+                  key={inputKey} 
                   fullWidth 
                   margin="dense"
-                  error={!!inputErrors[input.type]}
+                  error={!!inputErrors[inputKey]}
                 >
                   <Autocomplete
                     id={`team-input-${index}`}
-                    options={availableTeams.length > 0 ? availableTeams : d1Teams}
+                    options={availableTeamsForThisInput}
                     getOptionLabel={(option) => `${option.schoolName}`}
-                    value={inputValues[input.type] || null}
-                    onChange={(_, newValue) => handleInputChange(input.type, newValue)}
+                    value={inputValues[inputKey] || null}
+                    onChange={(_, newValue) => handleInputChange(inputKey, newValue)}
                     renderInput={(params) => (
                       <TextField 
                         {...params} 
                         label={input.label}
                         placeholder={input.placeholder}
-                        error={!!inputErrors[input.type]}
-                        helperText={inputErrors[input.type]}
+                        error={!!inputErrors[inputKey]}
+                        helperText={inputErrors[inputKey]}
                       />
                     )}
                   />
@@ -238,26 +287,47 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
               );
               
             case PerkInputType.OPPONENT:
+              // Filter out opponents already selected in other inputs of the same type
+              const selectedOpponents = perk.inputs
+                ?.filter((otherInput, idx) => 
+                  otherInput.type === PerkInputType.OPPONENT && 
+                  idx !== index && 
+                  inputValues[`${otherInput.type}_${idx}`])
+                .map(otherInput => {
+                  // Find the index of this input in the inputs array
+                  const idx = perk.inputs?.findIndex(i => i === otherInput) ?? -1;
+                  return inputValues[`${otherInput.type}_${idx}`];
+                }) || [];
+              
+              const availableOpponentsForThisInput = d1Teams
+                .filter(team => 
+                  // Not in user's selected teams
+                  !availableTeams.some(selectedTeam => selectedTeam.schoolName === team.schoolName) &&
+                  // Not already selected in another opponent input
+                  !selectedOpponents.some(selectedOpponent => 
+                    selectedOpponent && selectedOpponent.schoolName === team.schoolName)
+                );
+              
               return (
                 <FormControl 
-                  key={`${input.type}-${index}`} 
+                  key={inputKey} 
                   fullWidth 
                   margin="dense"
-                  error={!!inputErrors[input.type]}
+                  error={!!inputErrors[inputKey]}
                 >
                   <Autocomplete
                     id={`opponent-input-${index}`}
-                    options={d1Teams.filter(team => !availableTeams.some(selectedTeam => selectedTeam.schoolName === team.schoolName))}
+                    options={availableOpponentsForThisInput}
                     getOptionLabel={(option) => `${option.schoolName}`}
-                    value={inputValues[input.type] || null}
-                    onChange={(_, newValue) => handleInputChange(input.type, newValue)}
+                    value={inputValues[inputKey] || null}
+                    onChange={(_, newValue) => handleInputChange(inputKey, newValue)}
                     renderInput={(params) => (
                       <TextField 
                         {...params} 
                         label={input.label}
                         placeholder={input.placeholder}
-                        error={!!inputErrors[input.type]}
-                        helperText={inputErrors[input.type]}
+                        error={!!inputErrors[inputKey]}
+                        helperText={inputErrors[inputKey]}
                       />
                     )}
                   />
@@ -265,12 +335,30 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
               );
               
             case PerkInputType.PLAYER:
+              // Filter out players already selected in other inputs of the same type
+              const selectedPlayers = perk.inputs
+                ?.filter((otherInput, idx) => 
+                  otherInput.type === PerkInputType.PLAYER && 
+                  idx !== index && 
+                  inputValues[`${otherInput.type}_${idx}`])
+                .map(otherInput => {
+                  // Find the index of this input in the inputs array
+                  const idx = perk.inputs?.findIndex(i => i === otherInput) ?? -1;
+                  return inputValues[`${otherInput.type}_${idx}`];
+                }) || [];
+              
+              const availablePlayersForThisInput = users
+                .filter(user => 
+                  !selectedPlayers.some(selectedPlayer => 
+                    selectedPlayer && selectedPlayer.userId === user.userId)
+                );
+              
               return (
                 <FormControl 
-                  key={`${input.type}-${index}`} 
+                  key={inputKey} 
                   fullWidth 
                   margin="dense"
-                  error={!!inputErrors[input.type]}
+                  error={!!inputErrors[inputKey]}
                 >
                   {loadingUsers ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -280,10 +368,10 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                   ) : (
                     <Autocomplete
                       id={`player-input-${index}`}
-                      options={users}
+                      options={availablePlayersForThisInput}
                       getOptionLabel={(option) => formatUserDisplayName(option)}
-                      value={inputValues[input.type] || null}
-                      onChange={(_, newValue) => handleInputChange(input.type, newValue)}
+                      value={inputValues[inputKey] || null}
+                      onChange={(_, newValue) => handleInputChange(inputKey, newValue)}
                       isOptionEqualToValue={(option, value) => 
                         option.userId === value?.userId || option.username === value?.username
                       }
@@ -292,8 +380,8 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                           {...params} 
                           label={input.label}
                           placeholder={input.placeholder}
-                          error={!!inputErrors[input.type]}
-                          helperText={inputErrors[input.type]}
+                          error={!!inputErrors[inputKey]}
+                          helperText={inputErrors[inputKey]}
                         />
                       )}
                       renderOption={(props, option) => (
@@ -309,18 +397,18 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
             case PerkInputType.DATE:
               return (
                 <FormControl 
-                  key={`${input.type}-${index}`} 
+                  key={inputKey} 
                   fullWidth 
                   margin="dense"
-                  error={!!inputErrors[input.type]}
+                  error={!!inputErrors[inputKey]}
                 >
                   <TextField
                     type="date"
                     label={input.label}
-                    value={inputValues[input.type] || ''}
-                    onChange={(e) => handleInputChange(input.type, e.target.value)}
-                    error={!!inputErrors[input.type]}
-                    helperText={inputErrors[input.type]}
+                    value={inputValues[inputKey] || ''}
+                    onChange={(e) => handleInputChange(inputKey, e.target.value)}
+                    error={!!inputErrors[inputKey]}
+                    helperText={inputErrors[inputKey]}
                     slotProps={{
                       inputLabel: {
                         shrink: true
@@ -386,24 +474,33 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                 {/* Parameters display */}
                 {perkSelection.inputs && Object.keys(perkSelection.inputs).length > 0 && (
                   <Box sx={{ px: 2, py: 1, backgroundColor: 'rgba(0,0,0,0.02)' }}>
-                    {perk.inputs?.map((input, idx) => {
-                      const inputValue = perkSelection.inputs?.[input.type];
+                    {/* Process each input type only once */}
+                    {Object.entries(perkSelection.inputs).map(([inputType, inputValue]) => {
                       if (!inputValue) return null;
                       
-                      return (
-                        <Box key={`param-${idx}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">{input.label}:</Typography>
+                      // Find the input definition for this type
+                      const inputDef = perk.inputs?.find(i => i.type === inputType);
+                      if (!inputDef) return null;
+                      
+                      // Handle both single values and arrays
+                      const displayValues = Array.isArray(inputValue) ? inputValue : [inputValue];
+                      
+                      return displayValues.map((value, valueIdx) => (
+                        <Box key={`param-${inputType}-${valueIdx}`} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {inputDef.label}{displayValues.length > 1 ? ` ${valueIdx + 1}` : ''}:
+                          </Typography>
                           <Typography variant="caption" fontWeight="bold">
-                            {typeof inputValue === 'object' && inputValue !== null ? (
-                              'schoolName' in inputValue ? 
-                                String(inputValue.schoolName) : 
-                                'userId' in inputValue ? 
-                                  formatUserDisplayName(inputValue as unknown as User) : 
-                                  String(inputValue)
-                            ) : String(inputValue)}
+                            {typeof value === 'object' && value !== null ? (
+                              'schoolName' in value ? 
+                                String(value.schoolName) : 
+                                'userId' in value ? 
+                                  formatUserDisplayName(value as unknown as User) : 
+                                  String(value)
+                            ) : String(value)}
                           </Typography>
                         </Box>
-                      );
+                      ));
                     })}
                   </Box>
                 )}

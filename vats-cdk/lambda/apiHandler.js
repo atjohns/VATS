@@ -3,6 +3,7 @@ const { getUserProfile, updateUserProfile, getAllUsers } = require('./userProfil
 const { getTeamSelections, updateTeamSelections, getAllTeamSelections } = require('./teamSelections');
 const { getTeamScores, getTeamScore, updateTeamScores } = require('./teamScores');
 const { getLeaderboard } = require('./leaderboard');
+const { getLeaderboardConfig } = require('./leaderboardConfig');
 const { createCorsResponse, authorizeUser } = require('./utils');
 
 /**
@@ -25,6 +26,10 @@ exports.handler = async (event) => {
     if (path === '/leaderboard') {
       const sport = event.queryStringParameters?.sport || 'football';
       return await getLeaderboard(sport);
+    }
+    
+    if (path === '/leaderboard-config') {
+      return createCorsResponse(200, getLeaderboardConfig());
     }
     
     // Check if this is an admin API endpoint

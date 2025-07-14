@@ -23,7 +23,6 @@ import {
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { SportType, ALL_SPORTS } from '../constants/sports';
-// No longer need fbsTeams import as we're getting data from the API
 
 import { getTeamScores, updateTeamScores, TeamScore } from '../services/teamScores';
 import { getAllTeamSelections, TeamSelection } from '../services/api';
@@ -107,12 +106,8 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
         setLoading(true);
         setError(null);
         
-        console.log(`Fetching team data for sport: ${selectedSport}`);
-        
         // First, get all team selections across users to know which teams to show
         const allSelectedTeams = await getAllTeamSelections(selectedSport);
-        console.log(`Found ${allSelectedTeams.length} teams selected by users`);
-        
         if (!allSelectedTeams || allSelectedTeams.length === 0) {
           setError('No teams have been selected by any users yet.');
           setTeamScores([]);
@@ -121,8 +116,6 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
         
         // Get existing scores from API
         const existingScores = await getTeamScores(selectedSport);
-        console.log('API returned scores:', existingScores);
-        
         // Create a map of existing scores by teamId
         const scoreMap = new Map();
         if (existingScores && existingScores.length > 0) {
@@ -233,7 +226,6 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
           }
         });
         
-        console.log(`Created ${teamsWithScores.length} team scores`);
         setTeamScores(teamsWithScores);
       } catch (err) {
         console.error('Error fetching team data:', err);
@@ -461,14 +453,10 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
         team.regularSeasonPoints > 0 || team.postseasonPoints > 0
       );
       
-      console.log(`Saving scores for ${teamsToUpdate.length} teams with non-zero values`);
-      console.log('Teams to update:', teamsToUpdate);
-      
       // Call API to update scores
       const success = await updateTeamScores(teamsToUpdate);
       
       if (success) {
-        console.log('Successfully saved team scores');
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000); // Clear success message after 3 seconds
       } else {

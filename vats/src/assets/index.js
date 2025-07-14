@@ -7,6 +7,7 @@ import NuclearOption from "./perks/nuclear.png";
 import RussianRoulette from "./perks/roulette.png";
 import PoisonTheWell from "./perks/poison.png";
 import MeatShield from "./perks/shield.png";
+import TwoForOne from "./perks/twoforone.png";
 
 export {
     ShotOfAdrenaline,
@@ -17,5 +18,6 @@ export {
     NuclearOption,
     RussianRoulette,
     PoisonTheWell,
-    MeatShield
+    MeatShield,
+    TwoForOne
 }

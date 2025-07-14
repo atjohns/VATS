@@ -92,10 +92,8 @@ async function updateTeamSelections(event, userId) {
       // Body is already parsed (e.g., in test environments)
       parsedBody = event.body;
     }
-    console.log('body JSON:', parsedBody);
-    console.log('perkAdjustments:', parsedBody.perkAdjustments);
   } catch (e) {
-    console.error('Error parsing request body:', e, 'Raw body:', event.body);
+    console.error('Error parsing request body');
     return createCorsResponse(400, { message: 'Invalid request body format' });
   }
 
@@ -107,26 +105,20 @@ async function updateTeamSelections(event, userId) {
   if (parsedBody.footballSelections) {
     teamSelections = parsedBody.footballSelections;
     sport = "football";
-    console.log('Processing football selections');
   } else if (parsedBody.mensbballSelections) {
     teamSelections = parsedBody.mensbballSelections;
     sport = "mensbball";
-    console.log('Processing mens basketball selections');
   } else if (parsedBody.womensbballSelections) {
     teamSelections = parsedBody.womensbballSelections;
     sport = "womensbball";
-    console.log('Processing womens basketball selections');
   } else if (parsedBody.baseballSelections) {
     teamSelections = parsedBody.baseballSelections;
     sport = "baseball";
-    console.log('Processing baseball selections');
   } else if (parsedBody.softballSelections) {
     teamSelections = parsedBody.softballSelections;
     sport = "softball";
-    console.log('Processing softball selections');
   }
   
-  console.log('Received perks:', perks);
   
   // Validate team selections
   if (!Array.isArray(teamSelections) || teamSelections.length !== 8) {
@@ -159,10 +151,9 @@ async function updateTeamSelections(event, userId) {
         }
       });
       
-      console.log(`Found ${existingPointsMap.size} existing team scores to preserve`);
     }
   } catch (err) {
-    console.warn('Error getting existing team selections for preserving scores:', err);
+    console.warn('Error getting existing team selections for preserving scores');
     // Continue with empty map
   }
   
@@ -209,8 +200,6 @@ async function updateTeamSelections(event, userId) {
         updatedAt: timestamp
       }
     };
-    
-    console.log('Creating new team selections record with data:', minimalTeamData);
     
     const putCommand = new PutCommand(putParams);
     await dynamodb.send(putCommand);
@@ -266,12 +255,6 @@ async function updateTeamSelections(event, userId) {
       ...perkAdjustments
     };
     
-    console.log('Merging perks:', {
-      existingPerks: existingPerks.length,
-      otherSportPerks: otherSportPerks.length,
-      currentSportPerks: currentSportPerks.length,
-      mergedPerks: mergedPerks.length
-    });
     
     const updateParams = {
       TableName: process.env.TEAM_SELECTIONS_TABLE,
@@ -286,8 +269,6 @@ async function updateTeamSelections(event, userId) {
       ReturnValues: 'ALL_NEW'
     };
     
-    console.log('Merging and saving team selections with preserved point data:', mergedTeamSelections);
-    console.log('Merging and saving perks with preserved data for other sports:', mergedPerks);
     
     const updateCommand = new UpdateCommand(updateParams);
     const updateResult = await dynamodb.send(updateCommand);

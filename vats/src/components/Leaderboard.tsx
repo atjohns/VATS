@@ -37,7 +37,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
       try {
         setLoading(true);
         setError(null);
-        console.log(`Fetching leaderboard for sport: ${sport}`);
+        
+        // Check if this sport's leaderboard is allowed to be shown
+        if (sport !== 'overall' && !SPORTS[sport as SportType].showLeaderboard) {
+          setError('This leaderboard is not currently available.');
+          setUserScores([]);
+          return;
+        }
         
         let leaderboard;
         if (sport === 'overall') {
@@ -48,14 +54,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
         
         // Check if the leaderboard has valid data
         if (!leaderboard || leaderboard.length === 0) {
-          console.log('No leaderboard data returned');
           setUserScores([]);
           return;
         }
         
-        // Log the raw leaderboard data to help debug
-        console.log(`Got ${leaderboard.length} user entries in leaderboard`);
-        console.log('First user example:', leaderboard[0]);
         
         // Sort by total points descending
         const sortedLeaderboard = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
@@ -79,7 +81,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
         
         setUserNames(namesMap);
       } catch (err) {
-        console.error('Error fetching leaderboard:', err);
+        console.error('Error fetching leaderboard data');
         setError('Failed to load leaderboard data.');
         setUserScores([]);
       } finally {

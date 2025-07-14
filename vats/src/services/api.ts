@@ -48,7 +48,6 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
       ? `/admin/users/${userId}/team-selections`  // Admin accessing another user
       : `/users/${userId}/team-selections`;       // User accessing own data
     
-    console.log(`Getting team selections from ${path}`);
     
     // Make API request
     const getPromise = get({
@@ -63,7 +62,6 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
     
     try {
       const parsedBody = JSON.parse(responseBody);
-      console.log('Team selections response:', parsedBody);
       // Return the full selections object with perks
       return {
         userId,
@@ -77,11 +75,11 @@ export const getTeamSelections = async (userId: string, admin: boolean): Promise
         perks: parsedBody.perks || []
       };
     } catch (e) {
-      console.error('Error parsing response body:', e);
+      console.error('Error parsing response');
       throw e;
     }
   } catch (error) {
-    console.error(`Error getting team selections${userId ? ` for user ${userId}` : ''}:`, error);
+    console.error('Error getting team selections');
     throw error;
   }
 };
@@ -127,7 +125,6 @@ export const updateTeamSelections = async (
       ? `/admin/users/${userId}/team-selections`  // Admin updating another user
       : `/users/${userId}/team-selections`;       // User updating own data
     
-    console.log(`Updating team selections at ${path}`);
     
     // Make API request
     const putPromise = put({
@@ -168,8 +165,6 @@ export const updateTeamSelections = async (
       }
     });
     
-    // Log what we're sending to the server
-    console.log('Sending perkAdjustments to server:', perkAdjustments, 'for sport:', sport);
     
     // Get and parse the response
     const { body } = await putPromise.response;
@@ -177,7 +172,6 @@ export const updateTeamSelections = async (
     
     try {
       const parsedBody = JSON.parse(responseBody);
-      console.log('Update response:', parsedBody);
       
       // Return the full user selections with perks
       return {
@@ -192,11 +186,11 @@ export const updateTeamSelections = async (
         perkAdjustments: parsedBody.perkAdjustments || {}
       };
     } catch (e) {
-      console.error('Error parsing response body:', e);
+      console.error('Error parsing response');
       throw e;
     }
   } catch (error) {
-    console.error(`Error updating team selections${userId ? ` for user ${userId}` : ''}:`, error);
+    console.error('Error updating team selections');
     throw error;
   }
 };
@@ -220,18 +214,15 @@ export const getAllUsers = async (): Promise<UserData[]> => {
     const session = await fetchAuthSession();
     const idToken = session.tokens?.idToken;
     if (idToken?.payload) {
-      console.log('ID token payload for admin request:', idToken.payload);
     }
     
     const token = session.tokens?.idToken?.toString() || '';
-    console.log('Token for admin API call:', token.substring(0, 20) + '...');
     
     // Create request headers with token
     const headers = {
       Authorization: `Bearer ${token}`
     };
     
-    console.log('Sending admin API request to /admin/users');
     
     // Get all users
     const getPromise = get({
@@ -243,21 +234,18 @@ export const getAllUsers = async (): Promise<UserData[]> => {
     });
     
     try {
-      const { body, statusCode, headers: responseHeaders } = await getPromise.response;
-      console.log('Admin API response status:', statusCode);
-      console.log('Admin API response headers:', responseHeaders);
+      const { body } = await getPromise.response;
       
       const responseBody = await body.text();
-      console.log('Admin API raw response:', responseBody);
       
       const parsedBody = JSON.parse(responseBody);
       return parsedBody.users || [];
     } catch (responseError) {
-      console.error('Error processing API response:', responseError);
-      throw new Error(`API response error: ${responseError}`);
+      console.error('Error processing API response');
+      throw new Error('API response error');
     }
   } catch (error) {
-    console.error('Error getting all users:', error);
+    console.error('Error getting all users');
     throw error;
   }
 };
@@ -301,8 +289,6 @@ export const getAllTeamSelections = async (sport: string = 'football'): Promise<
     // API endpoint for getting all team selections across users
     const path = `/admin/all-team-selections?sport=${sport}`;
     
-    console.log(`Getting all team selections from ${path}`);
-    
     // Make API request
     const getPromise = get({
       apiName: 'VatsApi',
@@ -316,10 +302,9 @@ export const getAllTeamSelections = async (sport: string = 'football'): Promise<
     
     try {
       const parsedBody = JSON.parse(responseBody);
-      console.log('All team selections response:', parsedBody);
       return parsedBody.teamSelections || [];
     } catch (e) {
-      console.error('Error parsing response body:', e);
+      console.error('Error parsing response');
       return [];
     }
   } catch (error) {
@@ -328,7 +313,6 @@ export const getAllTeamSelections = async (sport: string = 'football'): Promise<
     // If the API endpoint doesn't exist yet, we'll need to get all users and their selections
     // This is a fallback implementation that should work even without a dedicated endpoint
     try {
-      console.log('Trying fallback implementation to get all team selections');
       const users = await getAllUsers();
       
       // Get team selections for each user
