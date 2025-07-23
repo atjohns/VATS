@@ -114,9 +114,22 @@ const Home: React.FC = () => {
               alt={user?.friendlyUsername || user?.username} 
               sx={{ width: 32, height: 32, mr: 1 }} 
             />
-            <Typography variant="subtitle1">
-              {user?.friendlyUsername || user?.username || 'User'}
-            </Typography>
+            {user?.teamName ? (
+              <Box>
+                <Typography variant="subtitle2" sx={{ lineHeight: 1.2 }}>
+                  {user.teamName}
+                </Typography>
+                <Typography variant="caption" sx={{ display: 'block', lineHeight: 1 }}>
+                  {user?.friendlyUsername || user?.username || 'User'}
+                </Typography>
+              </Box>
+            ) : (
+              <Box>
+                <Typography variant="subtitle2" sx={{ lineHeight: 1.2 }}>
+                  {user?.friendlyUsername || user?.username || 'User'}
+                </Typography>
+              </Box>
+            )}
           </Box>
           <Button 
             color="inherit" 
@@ -124,6 +137,13 @@ const Home: React.FC = () => {
             sx={{ mr: 2 }}
           >
             Rules
+          </Button>
+          <Button 
+            color="inherit" 
+            onClick={() => navigate('/profile')}
+            sx={{ mr: 2 }}
+          >
+            Profile
           </Button>
           {isAdmin && (
             <Button 

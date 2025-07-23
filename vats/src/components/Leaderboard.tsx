@@ -19,7 +19,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { SportType, SPORTS } from '../constants/sports';
 import { getLeaderboard, UserScore, getAllSportsLeaderboard } from '../services/leaderboard';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserDisplayName } from '../services/userService';
+import { getUserDisplayData, UserDisplayData } from '../services/userService';
 
 interface LeaderboardProps {
   sport: string; // Can be SportType or 'overall'
@@ -29,7 +29,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
   const [userScores, setUserScores] = useState<UserScore[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [userNames, setUserNames] = useState<{[key: string]: string}>({});
+  const [userData, setUserData] = useState<{[key: string]: UserDisplayData}>({});
   const { user } = useAuth();
 
   useEffect(() => {
@@ -58,30 +58,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
           return;
         }
         
-        
         // Sort by total points descending
         const sortedLeaderboard = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
         setUserScores(sortedLeaderboard);
         
-        // Fetch display names for all users in the leaderboard
-        const userIds = sortedLeaderboard.map(score => score.userId);
-        const namesPromises = userIds.map(async (userId) => {
-          const name = await getUserDisplayName(userId);
-          return { userId, name };
-        });
+        // Get unique user IDs from the leaderboard
+        const userIds = Array.from(new Set(sortedLeaderboard.map(score => score.userId)));
         
-        // Wait for all name lookups to complete
-        const nameResults = await Promise.all(namesPromises);
-        
-        // Build a map of user IDs to display names
-        const namesMap: {[key: string]: string} = {};
-        nameResults.forEach(({ userId, name }) => {
-          namesMap[userId] = name;
-        });
-        
-        setUserNames(namesMap);
+        // Fetch display data for all users in a single batch
+        const displayData = await getUserDisplayData(userIds);
+        setUserData(displayData);
       } catch (err) {
-        console.error('Error fetching leaderboard data');
+        console.error('Error fetching leaderboard data:', err);
         setError('Failed to load leaderboard data.');
         setUserScores([]);
       } finally {
@@ -91,6 +79,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
 
     fetchLeaderboard();
   }, [sport]);
+
+  // Helper function to format team display name
+  const formatTeamDisplay = (userScore: UserScore) => {
+    const displayName = userData[userScore.userId]?.displayName || userScore.name || userScore.username || userScore.userId;
+    const teamName = userData[userScore.userId]?.teamName;
+    
+    if (teamName) {
+      return (
+        <>
+          {teamName} <Typography component="span" variant="body2" color="text.secondary">({displayName})</Typography>
+        </>
+      );
+    }
+    
+    return displayName;
+  };
 
   // Define table rendering function - no state checks yet
   const renderLeaderboardContent = () => {
@@ -107,7 +111,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
             <TableHead>
               <TableRow>
                 <TableCell>Rank</TableCell>
-                <TableCell>User</TableCell>
+                <TableCell>Team</TableCell>
                 <TableCell align="right">Football</TableCell>
                 <TableCell align="right">Men's Ball</TableCell>
                 <TableCell align="right">Women's Ball</TableCell>
@@ -129,7 +133,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Typography variant="body2">
-                        {userNames[userScore.userId] || userScore.name || userScore.username || userScore.userId}
+                        {formatTeamDisplay(userScore)}
                         {user?.userId === userScore.userId && (
                           <Chip 
                             label="You" 
@@ -188,7 +192,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
           <TableHead>
             <TableRow>
               <TableCell>Rank</TableCell>
-              <TableCell>User</TableCell>
+              <TableCell>Team</TableCell>
               <TableCell align="right">Team Points</TableCell>
               <TableCell align="right">Perks Adj</TableCell>
               <TableCell align="right">Total</TableCell>
@@ -210,7 +214,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Typography variant="body2">
-                        {userNames[userScore.userId] || userScore.name || userScore.username || userScore.userId}
+                        {formatTeamDisplay(userScore)}
                         {user?.userId === userScore.userId && (
                           <Chip 
                             label="You" 
@@ -323,7 +327,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
   };
   
   // Memoize the table content
-  const memoizedTable = useMemo(() => renderLeaderboardContent(), [userScores, sport, userNames, user]);
+  const memoizedTable = useMemo(() => renderLeaderboardContent(), [userScores, sport, userData, user]);
   
   return (
     <Box>

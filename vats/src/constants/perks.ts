@@ -66,7 +66,7 @@ export const AVAILABLE_PERKS: Perk[] = [
   {
     id: 'poison',
     title: 'Poison The Well',
-    description: 'Select an opponent, one team on his roster at random will earn half points (a roster can only be poisoned once per tournament).',
+    description: 'Select an opponent, one tournament-eligible team on that roster at random will earn 1/4 points (a roster can only be poisoned once per tournament).',
     image: PoisonTheWell,
     usageCount: 0,
     maxUses: 2,

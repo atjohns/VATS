@@ -1,5 +1,5 @@
 // Import handler modules
-const { getUserProfile, updateUserProfile, getAllUsers } = require('./userProfile');
+const { getUserProfile, updateUserProfile, getAllUsers, updateTeamName } = require('./userProfile');
 const { getTeamSelections, updateTeamSelections, getAllTeamSelections } = require('./teamSelections');
 const { getTeamScores, getTeamScore, updateTeamScores } = require('./teamScores');
 const { getLeaderboard } = require('./leaderboard');
@@ -71,6 +71,8 @@ async function handleUserRequest(event, path, method) {
     return await getUserProfile(userId);
   } else if (path.match(/^\/users\/[^/]+$/) && method === 'PUT') {
     return await updateUserProfile(event, userId);
+  } else if (path === '/profile/team-name' && method === 'PUT') {
+    return await updateTeamName(event);
   } else {
     return createCorsResponse(404, {
       message: `Not Found: ${method} ${path}`

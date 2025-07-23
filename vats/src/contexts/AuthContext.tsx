@@ -14,6 +14,7 @@ interface UserInfo {
   email?: string;
   picture?: string;
   groups?: string[]; // Add groups for admin check
+  teamName?: string; // Add team name
 }
 
 interface AuthContextType {
@@ -23,6 +24,7 @@ interface AuthContextType {
   isAdmin: boolean; // Add isAdmin flag
   signInWithGoogle: () => Promise<any>;
   signOut: () => Promise<void>;
+  refreshUserAttributes: () => Promise<void>; // Add refresh function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,7 +107,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Add other useful attributes
           email: attributes.email,
           picture: attributes.picture,
-          groups: userGroups // Add groups to the user object
+          groups: userGroups, // Add groups to the user object
+          teamName: attributes.preferred_username // Add team name from preferred_username
         });
       } catch (attrError) {
         console.error('Error fetching user attributes:', attrError);
@@ -147,6 +150,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Function to refresh user attributes after updates
+  const refreshUserAttributes = async () => {
+    try {
+      await checkAuth();
+    } catch (error) {
+      console.error('Error refreshing user attributes:', error);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -154,6 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAdmin, // Add isAdmin to the context value
     signInWithGoogle: handleSignInWithGoogle,
     signOut: handleSignOut,
+    refreshUserAttributes, // Add refresh function to context
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -228,6 +228,32 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       setEditMode(true);
     }
   }, [selectedTeams, hasExistingSelections, editMode]);
+  
+  // Effect to automatically set the first team for Ride or Die slot for non-admin users
+  useEffect(() => {
+    // Only run this for non-admin users in edit mode when the Ride or Die slot (index 0) is empty
+    if (!isAdmin && editMode && (!selectedTeams[0] || selectedTeams[0] === null)) {
+      // Get the first available team from the filtered list for Ride or Die
+      const availableTeams = d1Teams.filter(team => {
+        if (sport === SportType.FOOTBALL) {
+          return team.fbs === true;
+        } else {
+          return true;
+        }
+      });
+      
+      if (availableTeams.length > 0) {
+        // Set the first team as the Ride or Die team
+        const firstTeam = availableTeams[0];
+        const newTeams = [...selectedTeams];
+        newTeams[0] = {
+          ...firstTeam as TeamSelection,
+          sport: sport
+        };
+        setSelectedTeams(newTeams);
+      }
+    }
+  }, [isAdmin, editMode, selectedTeams, sport]);
 
   const handleTeamChange = (index: number, newValue: D1Teams | null) => {
     const newTeams = [...selectedTeams];
@@ -276,8 +302,16 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    // Check if all slots are filled
-    if (selectedTeams.some(team => team === null)) {
+    // Check if all slots are filled, but for non-admin users, skip checking the Ride or Die slot (index 0)
+    const hasEmptySlots = selectedTeams.some((team, index) => {
+      // For non-admin users, don't validate the Ride or Die slot
+      if (!isAdmin && index === 0) {
+        return false;
+      }
+      return team === null;
+    });
+    
+    if (hasEmptySlots) {
       alert(`Please select a team for each slot`);
       return;
     }
@@ -547,36 +581,48 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                 <Typography variant="subtitle2" color="primary" gutterBottom>
                   {label}
                 </Typography>
-                <Autocomplete
-                  id={`team-select-${index}`}
-                  value={selectedTeams[index] as D1Teams | null}
-                  onChange={(_, newValue) => handleTeamChange(index, newValue)}
-                  options={getFilteredTeams()}
-                  getOptionLabel={(option) => `${option.schoolName}`}
-                  renderInput={(params) => (
-                    <TextField 
-                      {...params} 
-                      error={!!errors[index]}
-                    />
-                  )}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  renderOption={(props, option) => (
-                    <li {...props} key={option.schoolName}>
-                      <Box>
-                        <Typography variant="body2">
-                          <strong>{option.schoolName}</strong>
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {option.conference}
-                        </Typography>
-                      </Box>
-                    </li>
-                  )}
-                  getOptionDisabled={(option) => {
-                    // Disable options that are already selected in other sports
-                    return teamsInOtherSports.some(team => team.id === option.id);
-                  }}
-                />
+                {/* Make Ride or Die (index 0) read-only for non-admin users */}
+                {index === 0 && !isAdmin ? (
+                  <TextField
+                    fullWidth
+                    value={selectedTeams[index]?.schoolName || ''}
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                    helperText="Will be updated following draft"
+                  />
+                ) : (
+                  <Autocomplete
+                    id={`team-select-${index}`}
+                    value={selectedTeams[index] as D1Teams | null}
+                    onChange={(_, newValue) => handleTeamChange(index, newValue)}
+                    options={getFilteredTeams()}
+                    getOptionLabel={(option) => `${option.schoolName}`}
+                    renderInput={(params) => (
+                      <TextField 
+                        {...params} 
+                        error={!!errors[index]}
+                      />
+                    )}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    renderOption={(props, option) => (
+                      <li {...props} key={option.schoolName}>
+                        <Box>
+                          <Typography variant="body2">
+                            <strong>{option.schoolName}</strong>
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.conference}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                    getOptionDisabled={(option) => {
+                      // Disable options that are already selected in other sports
+                      return teamsInOtherSports.some(team => team.id === option.id);
+                    }}
+                  />
+                )}
                 {errors[index] && <FormHelperText error>{errors[index]}</FormHelperText>}
                 
                 {/* Remove admin-only score fields */}
@@ -620,7 +666,13 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               type="submit"
               variant="contained"
               color="primary"
-              disabled={saving || selectedTeams.some(team => team === null)}
+              disabled={saving || selectedTeams.some((team, index) => {
+                // For non-admin users, don't validate the Ride or Die slot
+                if (!isAdmin && index === 0) {
+                  return false;
+                }
+                return team === null;
+              })}
             >
               {saving ? <CircularProgress size={24} /> : 'Save Selections'}
             </Button>

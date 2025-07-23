@@ -10,6 +10,7 @@ import { configureAmplify } from './amplify-config';
 import SignIn from './pages/SignIn';
 import Home from './pages/Home';
 import Admin from './pages/Admin';
+import Profile from './pages/Profile';
 
 // Initialize Amplify in V6 format with legacy compatibility
 configureAmplify();
@@ -83,6 +84,14 @@ const AppContent: React.FC = () => {
               <AdminRoute>
                 <Admin />
               </AdminRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
             } 
           />
           <Route path="/" element={
