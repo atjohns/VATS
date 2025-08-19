@@ -84,16 +84,41 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
   const formatTeamDisplay = (userScore: UserScore) => {
     const displayName = userData[userScore.userId]?.displayName || userScore.name || userScore.username || userScore.userId;
     const teamName = userData[userScore.userId]?.teamName;
+    const profile = userData[userScore.userId]?.profile;
+    
+    // Create the profile image element if profile exists
+    const profileImage = profile ? (
+      <img 
+        src={`/assets/logos/${profile}`}
+        alt={`${teamName || displayName} logo`}
+        style={{
+          height: '25px',
+          marginRight: '10px',
+          objectFit: 'contain',
+          verticalAlign: 'middle'
+        }}
+        onError={(e) => {
+          // Hide image if it fails to load
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+    ) : null;
     
     if (teamName) {
       return (
         <>
+          {profileImage}
           {teamName} <Typography component="span" variant="body2" color="text.secondary">({displayName})</Typography>
         </>
       );
     }
     
-    return displayName;
+    return (
+      <>
+        {profileImage}
+        {displayName}
+      </>
+    );
   };
 
   // Define table rendering function - no state checks yet
@@ -107,7 +132,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ sport }) => {
     if (sport === 'overall') {
       return (
         <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} size="small">
+           <Table sx={{ minWidth: 650 }} size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Rank</TableCell>

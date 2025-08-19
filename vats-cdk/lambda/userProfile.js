@@ -54,7 +54,8 @@ async function getAllUsers() {
         username: user.Username,
         email: getAttr('email'),
         name: getAttr('name') || `${getAttr('given_name') || ''} ${getAttr('family_name') || ''}`.trim(),
-        teamName: getAttr('preferred_username')
+        teamName: getAttr('preferred_username'),
+        profile: getAttr('profile')
       };
     });
     

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Autocomplete, 
   TextField, 
@@ -21,6 +21,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { d1Teams, D1Teams } from '../constants/d1teams';
 import { SportType, SPORTS, DEFAULT_SPORT, SLOT_LABELS as SPORT_SLOT_LABELS } from '../constants/sports';
 
+// Extended TeamSelection interface to include slot position information
+interface TeamSelectionWithSlot extends TeamSelection {
+  slotIndex?: number;
+}
 
 interface TeamSelectionFormProps {
   sport?: SportType; // The sport type this form handles
@@ -62,7 +66,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
   const [perkAdjustments, setPerkAdjustments] = useState<{[key: string]: number}>(initialPerkAdjustments || {});
   
   // Track teams selected in other sports
-  const [teamsInOtherSports, setTeamsInOtherSports] = useState<TeamSelection[]>([]);
+  const [teamsInOtherSports, setTeamsInOtherSports] = useState<TeamSelectionWithSlot[]>([]);
 
   // Use ref to track if API has been called already (won't trigger re-renders)
   const hasLoadedFromApiRef = useRef(false);
@@ -140,27 +144,50 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
         let teamSelectionsArray:any[] = [];
         
         // Get all team selections across all sports to track duplicates
-        const allSportsTeams: TeamSelection[] = [];
+        const allSportsTeams: TeamSelectionWithSlot[] = [];
         
-        // Add teams from all sports
+        // Add teams from all sports, excluding Ride or Die teams (index 0) from cross-sport validation
         if (Array.isArray(userSelections.footballSelections)) {
-          allSportsTeams.push(...userSelections.footballSelections);
+          // Add all teams, but we'll filter out Ride or Die later
+          allSportsTeams.push(...userSelections.footballSelections.map((team, index) => ({
+            ...team,
+            slotIndex: index,
+            sport: 'football'
+          })));
         }
         if (Array.isArray(userSelections.mensbballSelections)) {
-          allSportsTeams.push(...userSelections.mensbballSelections);
+          allSportsTeams.push(...userSelections.mensbballSelections.map((team, index) => ({
+            ...team,
+            slotIndex: index,
+            sport: 'mensbball'
+          })));
         }
         if (Array.isArray(userSelections.womensbballSelections)) {
-          allSportsTeams.push(...userSelections.womensbballSelections);
+          allSportsTeams.push(...userSelections.womensbballSelections.map((team, index) => ({
+            ...team,
+            slotIndex: index,
+            sport: 'womensbball'
+          })));
         }
         if (Array.isArray(userSelections.baseballSelections)) {
-          allSportsTeams.push(...userSelections.baseballSelections);
+          allSportsTeams.push(...userSelections.baseballSelections.map((team, index) => ({
+            ...team,
+            slotIndex: index,
+            sport: 'baseball'
+          })));
         }
         if (Array.isArray(userSelections.softballSelections)) {
-          allSportsTeams.push(...userSelections.softballSelections);
+          allSportsTeams.push(...userSelections.softballSelections.map((team, index) => ({
+            ...team,
+            slotIndex: index,
+            sport: 'softball'
+          })));
         }
         
-        // Set teams from other sports
-        setTeamsInOtherSports(allSportsTeams.filter(team => team.sport !== sport));
+        // Set teams from other sports, excluding Ride or Die teams (slotIndex 0)
+        setTeamsInOtherSports(allSportsTeams.filter(team => 
+          team.sport !== sport && team.slotIndex !== 0
+        ));
         
         // Set teams for current sport
         if (sport === SportType.FOOTBALL && Array.isArray(userSelections.footballSelections)) {
@@ -235,6 +262,11 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
     if (!isAdmin && editMode && (!selectedTeams[0] || selectedTeams[0] === null)) {
       // Get the first available team from the filtered list for Ride or Die
       const availableTeams = d1Teams.filter(team => {
+        // Exclude disabled teams from auto-selection
+        if (team.disabled) {
+          return false;
+        }
+        
         if (sport === SportType.FOOTBALL) {
           return team.fbs === true;
         } else {
@@ -263,7 +295,8 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       newTeams.some((team, i) => i !== index && team && team.id === newValue.id);
     
     // Check if this team is already selected in another sport
-    const isDuplicateInOtherSport = newValue && 
+    // Exception: Ride or Die teams (index 0) can be selected across multiple sports
+    const isDuplicateInOtherSport = newValue && index !== 0 && 
       teamsInOtherSports.some(team => team && team.id === newValue.id);
     
     if (isDuplicateInSport) {
@@ -311,7 +344,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
       return team === null;
     });
     
-    if (hasEmptySlots) {
+    if (hasEmptySlots && !isAdmin) {
       alert(`Please select a team for each slot`);
       return;
     }
@@ -530,7 +563,7 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
             const getFilteredTeams = () => {
               const p4Conferences = ["SEC", "ACC", "Big Ten", "Big 12"];
               
-              // First filter by sport
+              // First filter by sport only - keep disabled teams visible but they'll be disabled in dropdown
               const availableTeams = d1Teams.filter(team => {
                 // For football, only show FBS teams
                 if (sport === SportType.FOOTBALL) {
@@ -589,7 +622,6 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                     InputProps={{
                       readOnly: true,
                     }}
-                    helperText="Will be updated following draft"
                   />
                 ) : (
                   <Autocomplete
@@ -607,9 +639,14 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     renderOption={(props, option) => (
                       <li {...props} key={option.schoolName}>
-                        <Box>
+                        <Box sx={{ opacity: option.disabled ? 0.5 : 1 }}>
                           <Typography variant="body2">
                             <strong>{option.schoolName}</strong>
+                            {option.disabled && !isAdmin && (
+                              <Typography component="span" variant="caption" color="error" sx={{ ml: 1 }}>
+                                (Ride or Die selection)
+                              </Typography>
+                            )}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {option.conference}
@@ -618,8 +655,14 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
                       </li>
                     )}
                     getOptionDisabled={(option) => {
+                      // Disable teams that are marked as disabled
+                      if (option.disabled && !isAdmin) {
+                        return true;
+                      }
+                      
                       // Disable options that are already selected in other sports
-                      return teamsInOtherSports.some(team => team.id === option.id);
+                      // Exception: Ride or Die slot (index 0) can select teams from other sports
+                      return index !== 0 && teamsInOtherSports.some(team => team.id === option.id);
                     }}
                   />
                 )}
@@ -666,13 +709,13 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               type="submit"
               variant="contained"
               color="primary"
-              disabled={saving || selectedTeams.some((team, index) => {
+              disabled={saving || (!isAdmin && selectedTeams.some((team, index) => {
                 // For non-admin users, don't validate the Ride or Die slot
                 if (!isAdmin && index === 0) {
                   return false;
                 }
                 return team === null;
-              })}
+              }))}
             >
               {saving ? <CircularProgress size={24} /> : 'Save Selections'}
             </Button>

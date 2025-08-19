@@ -271,8 +271,26 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                     id={`team-input-${index}`}
                     options={availableTeamsForThisInput}
                     getOptionLabel={(option) => `${option.schoolName}`}
+                    getOptionDisabled={(option) => option.disabled === true}
                     value={inputValues[inputKey] || null}
                     onChange={(_, newValue) => handleInputChange(inputKey, newValue)}
+                    renderOption={(props, option) => (
+                      <li {...props} key={option.schoolName}>
+                        <Box sx={{ opacity: option.disabled ? 0.5 : 1 }}>
+                          <Typography variant="body2">
+                            {option.schoolName}
+                            {option.disabled && (
+                              <Typography component="span" variant="caption" color="error" sx={{ ml: 1 }}>
+                                (Disabled)
+                              </Typography>
+                            )}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.conference}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
                     renderInput={(params) => (
                       <TextField 
                         {...params} 
@@ -319,8 +337,26 @@ const PerkSelector: React.FC<PerkSelectorProps> = ({
                     id={`opponent-input-${index}`}
                     options={availableOpponentsForThisInput}
                     getOptionLabel={(option) => `${option.schoolName}`}
+                    getOptionDisabled={(option) => option.disabled === true}
                     value={inputValues[inputKey] || null}
                     onChange={(_, newValue) => handleInputChange(inputKey, newValue)}
+                    renderOption={(props, option) => (
+                      <li {...props} key={option.schoolName}>
+                        <Box sx={{ opacity: option.disabled ? 0.5 : 1 }}>
+                          <Typography variant="body2">
+                            {option.schoolName}
+                            {option.disabled && (
+                              <Typography component="span" variant="caption" color="error" sx={{ ml: 1 }}>
+                                (Disabled)
+                              </Typography>
+                            )}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.conference}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
                     renderInput={(params) => (
                       <TextField 
                         {...params} 

@@ -3,6 +3,7 @@ export interface D1Teams {
   schoolName: string;
   conference: string;
   fbs: boolean;
+  disabled?: boolean; // Optional flag to disable team selection
 }
 
 export const d1Teams: D1Teams[] = [
@@ -28,6 +29,12 @@ export const d1Teams: D1Teams[] = [
     "id": "umaine",
     "schoolName": "University of Maine (UMaine)",
     "conference": "America East",
+    "fbs": false
+  },
+  {
+    "id": "dallas",
+    "schoolName": "Dallas Baptist",
+    "conference": "Conference USA",
     "fbs": false
   },
   {
@@ -82,7 +89,8 @@ export const d1Teams: D1Teams[] = [
     "id": "memphis",
     "schoolName": "University of Memphis (U of M)",
     "conference": "The American",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "unt",
@@ -100,7 +108,8 @@ export const d1Teams: D1Teams[] = [
     "id": "usf",
     "schoolName": "University of South Florida (USF)",
     "conference": "The American",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "temple",
@@ -118,13 +127,15 @@ export const d1Teams: D1Teams[] = [
     "id": "utsa",
     "schoolName": "University of Texas at San Antonio (UTSA)",
     "conference": "The American",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "tulane",
     "schoolName": "Tulane University",
     "conference": "The American",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "ut",
@@ -182,7 +193,7 @@ export const d1Teams: D1Teams[] = [
   },
   {
     "id": "miami",
-    "schoolName": "University of Miami (often Miami (FL) or UM)",
+    "schoolName": "University of Miami (FL)",
     "conference": "ACC",
     "fbs": true
   },
@@ -946,7 +957,8 @@ export const d1Teams: D1Teams[] = [
     "id": "fiu",
     "schoolName": "Florida International University (FIU)",
     "conference": "Conference USA",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "jaxst",
@@ -964,7 +976,8 @@ export const d1Teams: D1Teams[] = [
     "id": "lib",
     "schoolName": "Liberty University",
     "conference": "Conference USA",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "latech",
@@ -1000,7 +1013,8 @@ export const d1Teams: D1Teams[] = [
     "id": "wku",
     "schoolName": "Western Kentucky University (WKU)",
     "conference": "Conference USA",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "csu",
@@ -1198,7 +1212,8 @@ export const d1Teams: D1Teams[] = [
     "id": "akron",
     "schoolName": "University of Akron",
     "conference": "MAC",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "bsu",
@@ -1238,9 +1253,10 @@ export const d1Teams: D1Teams[] = [
   },
   {
     "id": "miaoh",
-    "schoolName": "Miami University (Miami (OH))",
+    "schoolName": "Miami University (OH)",
     "conference": "MAC",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "niu",
@@ -1258,7 +1274,8 @@ export const d1Teams: D1Teams[] = [
     "id": "toledo",
     "schoolName": "University of Toledo",
     "conference": "MAC",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "wmu",
@@ -1396,7 +1413,8 @@ export const d1Teams: D1Teams[] = [
     "id": "boise",
     "schoolName": "Boise State University",
     "conference": "Mountain West",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "colostate",
@@ -1408,7 +1426,8 @@ export const d1Teams: D1Teams[] = [
     "id": "fresno",
     "schoolName": "California State University, Fresno (Fresno State)",
     "conference": "Mountain West",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "unr",
@@ -1426,7 +1445,8 @@ export const d1Teams: D1Teams[] = [
     "id": "sdsu",
     "schoolName": "San Diego State University (SDSU)",
     "conference": "Mountain West",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "sjsu",
@@ -1438,7 +1458,8 @@ export const d1Teams: D1Teams[] = [
     "id": "unlv",
     "schoolName": "University of Nevada, Las Vegas (UNLV)",
     "conference": "Mountain West",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "usuagg",
@@ -1629,7 +1650,7 @@ export const d1Teams: D1Teams[] = [
   {
     "id": "navy",
     "schoolName": "United States Naval Academy (Navy)",
-    "conference": "Patriot League",
+    "conference": "American",
     "fbs": true
   },
   {
@@ -1990,7 +2011,8 @@ export const d1Teams: D1Teams[] = [
     "id": "appst",
     "schoolName": "Appalachian State University",
     "conference": "Sun Belt",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "arkst",
@@ -2002,7 +2024,8 @@ export const d1Teams: D1Teams[] = [
     "id": "coastal",
     "schoolName": "Coastal Carolina University",
     "conference": "Sun Belt",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "gaso",
@@ -2020,13 +2043,15 @@ export const d1Teams: D1Teams[] = [
     "id": "jmu",
     "schoolName": "James Madison University (JMU)",
     "conference": "Sun Belt",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "ull",
     "schoolName": "University of Louisiana at Lafayette (Louisiana)",
     "conference": "Sun Belt",
-    "fbs": true
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "ulm",
@@ -2074,7 +2099,8 @@ export const d1Teams: D1Teams[] = [
     "id": "zags",
     "schoolName": "Gonzaga University",
     "conference": "West Coast",
-    "fbs": false
+    "fbs": false,
+    "disabled": true
   },
   {
     "id": "lmu",
@@ -2085,8 +2111,9 @@ export const d1Teams: D1Teams[] = [
   {
     "id": "orst",
     "schoolName": "Oregon State University",
-    "conference": "West Coast",
-    "fbs": true
+    "conference": "P12",
+    "fbs": true,
+    "disabled": true
   },
   {
     "id": "pacific",
@@ -2133,7 +2160,7 @@ export const d1Teams: D1Teams[] = [
   {
     "id": "wasu",
     "schoolName": "Washington State University",
-    "conference": "West Coast",
+    "conference": "P12",
     "fbs": true
   },
   {
@@ -2152,7 +2179,8 @@ export const d1Teams: D1Teams[] = [
     "id": "gcu",
     "schoolName": "Grand Canyon University",
     "conference": "WAC",
-    "fbs": false
+    "fbs": false,
+    "disabled": true
   },
   {
     "id": "sea",

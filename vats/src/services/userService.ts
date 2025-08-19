@@ -7,11 +7,13 @@ export interface User {
   email?: string;
   name?: string;
   teamName?: string;
+  profile?: string; // Image name for profile logo
 }
 
 export interface UserDisplayData {
   displayName: string;
   teamName?: string;
+  profile?: string; // Image name for profile logo
 }
 
 // Cache for storing users to minimize API calls
@@ -105,7 +107,8 @@ export const getUserDisplayData = async (userIds: string[]): Promise<{[key: stri
     const user = userCache[id] || { userId: id, username: id };
     result[id] = {
       displayName: formatUserDisplayName(user),
-      teamName: user.teamName || undefined
+      teamName: user.teamName || undefined,
+      profile: user.profile || undefined
     };
   });
   

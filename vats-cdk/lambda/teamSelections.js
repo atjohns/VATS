@@ -120,11 +120,6 @@ async function updateTeamSelections(event, userId) {
   }
   
   
-  // Validate team selections
-  if (!Array.isArray(teamSelections) || teamSelections.length !== 8) {
-    return createCorsResponse(400, { message: 'Must select exactly 8 teams' });
-  }
-  
   // First, get existing team selections to preserve point data
   let existingPointsMap = new Map();
   
