@@ -451,15 +451,18 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               <Typography variant="subtitle1" color="text.secondary">
                 You've selected these teams for your roster
               </Typography>
-              <Button 
-                startIcon={<EditIcon />} 
-                onClick={handleEditMode} 
-                color="primary"
-                size="small"
-                variant="outlined"
-              >
-                Edit
-              </Button>
+              {/* Only show Edit button if selection is not disabled (or user is admin) */}
+              {(!sportConfig.selectionDisabled || isAdmin) && (
+                <Button 
+                  startIcon={<EditIcon />} 
+                  onClick={handleEditMode} 
+                  color="primary"
+                  size="small"
+                  variant="outlined"
+                >
+                  Edit
+                </Button>
+              )}
             </Box>
             
             {selectedTeams && selectedTeams.some(team => team !== null) ? (
@@ -495,7 +498,10 @@ const TeamSelectionForm: React.FC<TeamSelectionFormProps> = ({
               <Box sx={{ p: 2, textAlign: 'center' }}>
                 <Typography>No teams found in your selection.</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Click Edit Selections below to add teams to your roster.
+                  {(!sportConfig.selectionDisabled || isAdmin) 
+                    ? 'Click Edit above to add teams to your roster.'
+                    : 'Team selection is currently disabled for this sport.'
+                  }
                 </Typography>
               </Box>
             )}

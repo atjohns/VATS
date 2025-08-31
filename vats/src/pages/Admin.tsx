@@ -25,6 +25,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
 import TeamSelectionForm from '../components/TeamSelectionForm';
 import TeamScores from '../components/TeamScores';
+import PopularSelections from '../components/PopularSelections';
 import { SportType, ALL_SPORTS, DEFAULT_SPORT } from '../constants/sports';
 import { Tabs, Tab } from '@mui/material';
 
@@ -181,6 +182,7 @@ const Admin: React.FC = () => {
           >
             <Tab label="User Selections" />
             <Tab label="Team Scores" />
+            <Tab label="Popular Selections" />
           </Tabs>
         </Box>
         
@@ -296,6 +298,11 @@ const Admin: React.FC = () => {
         {/* Tab 1: Team Scores */}
         {activeTab === 1 && (
           <TeamScores isAdmin={isAdmin} />
+        )}
+        
+        {/* Tab 2: Popular Selections */}
+        {activeTab === 2 && (
+          <PopularSelections isAdmin={isAdmin} />
         )}
       </Container>
       

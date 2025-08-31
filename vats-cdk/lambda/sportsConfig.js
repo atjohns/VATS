@@ -12,7 +12,7 @@ const sports = [
   { 
     id: 'football', 
     name: 'Football', 
-    standingsActive: false 
+    standingsActive: true 
   },
   { 
     id: 'mensbball', 

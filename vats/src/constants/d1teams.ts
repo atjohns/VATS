@@ -1602,7 +1602,7 @@ export const d1Teams: D1Teams[] = [
   {
     "id": "army",
     "schoolName": "United States Military Academy (Army or Army West Point)",
-    "conference": "Patriot League",
+    "conference": "The American",
     "fbs": true
   },
   {
@@ -1650,7 +1650,7 @@ export const d1Teams: D1Teams[] = [
   {
     "id": "navy",
     "schoolName": "United States Naval Academy (Navy)",
-    "conference": "American",
+    "conference": "The American",
     "fbs": true
   },
   {

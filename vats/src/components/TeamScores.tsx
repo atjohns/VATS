@@ -473,8 +473,8 @@ const TeamScores: React.FC<TeamScoresProps> = ({ isAdmin }) => {
 
   // Sort type management
   type SortField = 'schoolName' | 'conference' | 'regularSeasonPoints' | 'postseasonPoints' | 'total';
-  const [sortField, setSortField] = useState<SortField>('total');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState<SortField>('schoolName');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Handle column header click for sorting
   const handleSort = (field: SortField) => {

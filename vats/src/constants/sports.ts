@@ -13,7 +13,8 @@ export enum SportType {
 export interface SportDefinition {
   id: SportType;
   displayName: string;
-  showLeaderboard: boolean,
+  showLeaderboard: boolean;
+  selectionDisabled: boolean;
   maxTeams: number;
 }
 
@@ -21,31 +22,36 @@ export const SPORTS: Record<SportType, SportDefinition> = {
   [SportType.FOOTBALL]: {
     id: SportType.FOOTBALL,
     displayName: 'Football',
-    showLeaderboard: false,
+    showLeaderboard: true,
+    selectionDisabled: true,
     maxTeams: 8
   },
   [SportType.MENS_BASKETBALL]: {
     id: SportType.MENS_BASKETBALL,
     displayName: 'Men\'s Ball',
     showLeaderboard: false,
+    selectionDisabled: false,
     maxTeams: 8
   },
   [SportType.WOMENS_BASKETBALL]: {
     id: SportType.WOMENS_BASKETBALL,
     displayName: 'Women\'s Bball',
     showLeaderboard: false,
+    selectionDisabled: false,
     maxTeams: 8
   },
   [SportType.BASEBALL]: {
     id: SportType.BASEBALL,
     displayName: 'Baseball',
     showLeaderboard: false,
+    selectionDisabled: false,
     maxTeams: 8
   },
   [SportType.SOFTBALL]: {
     id: SportType.SOFTBALL,
     displayName: 'Softball',
     showLeaderboard: false,
+    selectionDisabled: false,
     maxTeams: 8
   }
 };
